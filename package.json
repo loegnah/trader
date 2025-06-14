@@ -9,6 +9,10 @@
     "lint": "biome check",
     "lint:write": "biome check --write"
   },
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "zod": "^3.25.64"
+  },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@types/bun": "latest"
