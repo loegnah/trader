@@ -5,9 +5,12 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "build": "bun build src/index.ts --target bun --outdir ./dist",
-    "start": "NODE_ENV=production bun dist/index.js"
+    "start": "NODE_ENV=production bun dist/index.js",
+    "lint": "biome check",
+    "lint:write": "biome check --write"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@types/bun": "latest"
   },
   "peerDependencies": {
