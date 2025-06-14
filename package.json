@@ -10,7 +10,10 @@
     "lint:write": "biome check --write"
   },
   "dependencies": {
+    "bybit-api": "^4.1.10",
     "dotenv": "^16.5.0",
+    "es-toolkit": "^1.39.3",
+    "radashi": "^12.5.1",
     "zod": "^3.25.64"
   },
   "devDependencies": {
