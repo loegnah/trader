@@ -1,3 +1,5 @@
+import { db } from "@/db";
 import { ENV } from "@/env";
 
-console.log(typeof ENV.ENV_TEST_2, ENV.ENV_TEST_2);
+console.log(ENV);
+console.log(await db.query.testSchema.findMany());

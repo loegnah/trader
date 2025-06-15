@@ -6,7 +6,7 @@ const zBoolean = () =>
 
 export const ENV = z
   .object({
-    ENV_TEST_1: z.string().default("default"),
-    ENV_TEST_2: zBoolean().default(false),
+    IS_DEV: zBoolean().default(false),
+    DB_URL: z.string().default("file:./sqlite.db"),
   })
   .parse(dotenv.config({ path: [".env"] }).parsed);
