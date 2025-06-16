@@ -20,4 +20,6 @@ export class BybitStreamPrivate extends ExchangeStreamPrivate {
   }
 
   async init() {}
+
+  setupHandler() {}
 }

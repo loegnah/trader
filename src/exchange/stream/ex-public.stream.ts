@@ -1,1 +1,3 @@
-export abstract class ExchangeStreamPublic {}
+export abstract class ExchangeStreamPublic {
+  abstract init(): Promise<void>;
+}
