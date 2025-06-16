@@ -1,9 +1,8 @@
-import { ExchangeStream } from "@/exchange/stream/exchangeStream";
+import { ExchangeStreamPrivate } from "@/exchange/stream/ex-private.stream";
 import { WebsocketClient } from "bybit-api";
 
-export class BybitStream extends ExchangeStream {
-  private streamPub: WebsocketClient;
-  private streamPri: WebsocketClient;
+export class BybitStreamPrivate extends ExchangeStreamPrivate {
+  private stream: WebsocketClient;
 
   constructor(params: {
     apiKey: string;
@@ -12,14 +11,13 @@ export class BybitStream extends ExchangeStream {
     isTestnet?: boolean;
   }) {
     super();
-    this.streamPub = new WebsocketClient({
-      testnet: params.isTestnet,
-    });
-    this.streamPri = new WebsocketClient({
+    this.stream = new WebsocketClient({
       key: params.apiKey,
       secret: params.apiSecret,
       demoTrading: false, // Not support in demo trading
       testnet: params.isTestnet,
     });
   }
+
+  async init() {}
 }
