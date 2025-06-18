@@ -16,6 +16,7 @@
       "extra",
       "build",
       "data",
+      "log",
       ".react-router",
       ".output",
       "src/routeTree.gen.ts",
