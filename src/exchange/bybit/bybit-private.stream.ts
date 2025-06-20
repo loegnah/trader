@@ -1,4 +1,4 @@
-import { ExchangeStreamPrivate } from "@/exchange/stream/ex-private.stream";
+import { ExchangeStreamPrivate } from "@/model/ex-stream.model";
 import { WebsocketClient } from "bybit-api";
 
 export class BybitStreamPrivate extends ExchangeStreamPrivate {

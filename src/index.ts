@@ -1,6 +1,6 @@
 import { ENV } from "@/env";
-import { BybitStreamPrivate } from "@/exchange/stream/bybit-private.stream";
-import { BybitStreamPublic } from "@/exchange/stream/bybit-public.stream";
+import { BybitStreamPrivate } from "@/exchange/bybit/bybit-private.stream";
+import { BybitStreamPublic } from "@/exchange/bybit/bybit-public.stream";
 
 async function main() {
   const _bybitStreamPrivate = new BybitStreamPrivate({

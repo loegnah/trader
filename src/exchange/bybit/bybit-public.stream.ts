@@ -1,5 +1,5 @@
-import { ExchangeStreamPublic } from "@/exchange/stream/ex-public.stream";
-import { convertBybitKlineEventToCandle } from "@/lib/bybit.lib";
+import { convertBybitKlineEventToCandle } from "@/exchange/bybit/bybit.util";
+import { ExchangeStreamPublic } from "@/model/ex-stream.model";
 import { logger } from "@/util/logger";
 import { WebsocketClient } from "bybit-api";
 
@@ -39,6 +39,6 @@ export class BybitStreamPublic extends ExchangeStreamPublic {
     if (!candle) {
       console.log("candle is null");
     }
-    console.log(candle);
+    console.log(`cur price: ${candle?.close}`);
   }
 }
