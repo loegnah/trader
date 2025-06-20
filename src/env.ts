@@ -24,5 +24,13 @@ export const ENV = z
     BYBIT_API_SECRET: z.string(),
     BYBIT_IS_DEMO_TRADING: zBoolean().default(false),
     BYBIT_IS_TESTNET: zBoolean().default(false),
+
+    // Discord
+    DISCORD_USER_ID: z.string(),
+    DISCORD_BOT_ID: z.string(),
+    DISCORD_BOT_TOKEN: z.string(),
+    DISCORD_BOT_CMD_LISTEN: zBoolean().default(false),
+    DISCORD_BOT_CMD_RESET: zBoolean().default(false),
+    DISCORD_BOT_SEND_MSG: zBoolean().default(false),
   })
   .parse(dotenv.config({ path: [".env"] }).parsed);

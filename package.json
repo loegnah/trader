@@ -16,7 +16,9 @@
   },
   "dependencies": {
     "bybit-api": "^4.1.10",
+    "chalk": "^5.4.1",
     "dayjs": "^1.11.13",
+    "discord.js": "^14.20.0",
     "dotenv": "^16.5.0",
     "drizzle-orm": "^0.44.2",
     "drizzle-seed": "^0.3.1",

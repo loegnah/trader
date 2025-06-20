@@ -1,6 +1,7 @@
 import { ENV } from "@/env";
 import { BybitStreamPrivate } from "@/exchange/bybit/bybit-private.stream";
 import { BybitStreamPublic } from "@/exchange/bybit/bybit-public.stream";
+import { discord } from "@/lib/discord/discord";
 
 async function main() {
   const _bybitStreamPrivate = new BybitStreamPrivate({
@@ -14,6 +15,8 @@ async function main() {
     isTestnet: ENV.BYBIT_IS_TESTNET,
   });
   await bybitStreamPublic.init();
+
+  await discord.init();
 }
 
 main();
