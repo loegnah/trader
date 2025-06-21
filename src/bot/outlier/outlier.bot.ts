@@ -9,6 +9,7 @@ import { Bot } from "@/model/bot.model";
 import type { Candle } from "@/model/candle.model";
 import { Exchange } from "@/model/ex.model";
 import { candleChangeRatio } from "@/util/candle.util";
+import { sendDiscordMsgToUser } from "@/util/discord.util";
 import { logger } from "@/util/logger";
 import { groupBy, mergeMap, throttleTime } from "rxjs";
 
@@ -35,14 +36,14 @@ export class OutlierBot extends Bot {
     await this.setupHandler();
   }
 
-  async reqSubscribe() {
+  private async reqSubscribe() {
     streamCn.subscribe({
       exchange: this.exc,
       data: { symbols: OUTLIER_SYMBOLS },
     });
   }
 
-  async setupHandler() {
+  private async setupHandler() {
     candleChannel
       .onLive$({ exchange: this.exc })
       .pipe(
@@ -61,10 +62,15 @@ export class OutlierBot extends Bot {
       logger.info(
         `[outlier-bot] ${symbol} is outlier! (${changed.toFixed(2)}%)`,
       );
+      sendDiscordMsgToUser({
+        title: "Checked outlier",
+        symbol,
+        changed: changed.toFixed(2),
+      });
     }
   }
 
-  checkOutlier(symbol: string, candle: Candle) {
+  private checkOutlier(symbol: string, candle: Candle) {
     const config = this.configMap[symbol];
     if (!config) return;
 

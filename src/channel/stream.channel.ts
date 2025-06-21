@@ -8,17 +8,17 @@ const $EventData = {
     symbols: z.array(z.string()),
   }),
 };
+
 type EventData = {
   [key in keyof typeof $EventData]: z.infer<(typeof $EventData)[key]>;
 };
 
-export const $StreamCnEvent = z.object({
-  category: z.enum(Object.keys($EventData) as [keyof typeof $EventData]),
-  data: z.any(),
-});
-export type StreamChEvent = z.infer<typeof $StreamCnEvent>;
+export type StreamCnEvent = {
+  category: keyof typeof $EventData;
+  data: EventData[keyof typeof $EventData];
+};
 
-class StreamChannel extends ExchangeChannel<StreamChEvent> {
+class StreamChannel extends ExchangeChannel<StreamCnEvent> {
   subscribe(params: { exchange: Exchange; data: EventData["subscribe"] }) {
     this.emit({
       exchange: params.exchange,

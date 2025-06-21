@@ -1,11 +1,24 @@
-import { Subject, share, tap } from "rxjs";
+import { Subject, filter, map, share, tap } from "rxjs";
+import { z } from "zod/v4";
 
-export type DiscordChannelEvent = {
-  msg: string;
+const $EventData = {
+  sendToUser: z.object({
+    msg: z.string(),
+  }),
+};
+
+type EventDataKey = keyof typeof $EventData;
+type EventData = {
+  [key in EventDataKey]: z.infer<(typeof $EventData)[key]>;
+};
+
+type DiscordCnEvent = {
+  type: EventDataKey;
+  data: EventData[EventDataKey];
 };
 
 class DiscordChannel {
-  public readonly events$ = new Subject<DiscordChannelEvent>();
+  public readonly events$ = new Subject<DiscordCnEvent>();
   public readonly sharedEvents$ = this.events$.pipe(share());
 
   constructor() {
@@ -14,12 +27,15 @@ class DiscordChannel {
 
   async init() {}
 
-  emit(event: DiscordChannelEvent) {
+  emit(event: DiscordCnEvent) {
     this.events$.next(event);
   }
 
-  on(handler: (data: DiscordChannelEvent) => void) {
-    return this.sharedEvents$.pipe(tap(handler));
+  onSendToUser$() {
+    return this.sharedEvents$.pipe(
+      filter((event) => event.type === "sendToUser"),
+      map((event) => $EventData[event.type].parse(event.data)),
+    );
   }
 }
 
