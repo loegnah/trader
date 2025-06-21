@@ -33,7 +33,7 @@ class Discord {
       this.client.on(Events.InteractionCreate, this.handleInteraction);
     }
     if (ENV.DISCORD_BOT_SEND_MSG) {
-      discordChannel.on((event) => {
+      discordChannel.onSendToUser$().subscribe((event) => {
         this.sendMsgToUser(event.msg);
       });
     }

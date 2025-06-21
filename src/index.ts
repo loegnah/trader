@@ -1,4 +1,4 @@
-import { streamCn } from "@/channel/stream.channel";
+import { OutlierBot } from "@/bot/outlier/outlier.bot";
 import { ENV } from "@/env";
 import { BybitStreamPrivate } from "@/exchange/bybit/bybit-private.stream";
 import { BybitStreamPublic } from "@/exchange/bybit/bybit-public.stream";
@@ -19,15 +19,8 @@ async function main() {
   await bybitStreamPrivate.init();
   await discord.init();
 
-  streamCn.onSubscribe$({ exchange: Exchange.BYBIT }).subscribe((event) => {
-    console.log(event);
-  });
-  setTimeout(() => {
-    streamCn.subscribe({
-      exchange: Exchange.BYBIT,
-      data: { symbols: ["kline.1.BTCUSDT"] },
-    });
-  }, 3000);
+  const outlierBot = new OutlierBot({ exc: Exchange.BYBIT });
+  await outlierBot.init();
 }
 
 main();
