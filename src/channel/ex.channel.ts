@@ -1,12 +1,5 @@
 import type { Exchange } from "@/model/ex.model";
-import {
-  Observable,
-  Subject,
-  type Subscription,
-  filter,
-  map,
-  share,
-} from "rxjs";
+import { Observable, Subject, filter, map, share } from "rxjs";
 
 export enum ExChannelType {
   CANDLE = "candle",
@@ -27,18 +20,9 @@ export class ExchangeChannel<T = any> {
     this.events$.next(event);
   }
 
-  on(exchange: Exchange, handler: (data: T) => void): Subscription {
-    return this.sharedEvents$
-      .pipe(
-        filter((event) => event.exchange === exchange),
-        map((event) => event.data),
-      )
-      .subscribe(handler);
-  }
-
-  get$(exchange: Exchange): Observable<T> {
+  on$(params: { exchange: Exchange }): Observable<T> {
     return this.sharedEvents$.pipe(
-      filter((event) => event.exchange === exchange),
+      filter((event) => event.exchange === params.exchange),
       map((event) => event.data),
     );
   }

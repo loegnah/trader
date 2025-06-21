@@ -9,6 +9,6 @@ export const $Candle = z.object({
   high: z.coerce.number(),
   low: z.coerce.number(),
   volume: z.coerce.number(),
-  turnover: z.coerce.number(),
+  confirm: z.boolean(),
 });
 export type Candle = z.infer<typeof $Candle>;

@@ -39,9 +39,11 @@ export class BybitStreamPublic extends ExchangeStreamPublic {
   }
 
   private setupChannelListener() {
-    streamCn.onSubscribe(EX, ({ symbol }) => {
-      this.stream.subscribeV5(symbol, "linear");
-      logger.info(`[bybit-stream-public] subscribed to ${symbol}`);
+    streamCn.onSubscribe$({ exchange: EX }).subscribe(({ symbols }) => {
+      this.stream.subscribeV5(symbols, "linear");
+      logger.info(
+        `[bybit-stream-public] subscribed to (${symbols.join(", ")})`,
+      );
     });
   }
 

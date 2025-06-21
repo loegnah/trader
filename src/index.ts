@@ -18,11 +18,15 @@ async function main() {
   await bybitStreamPublic.init();
   await bybitStreamPrivate.init();
   await discord.init();
-  streamCn.onSubscribe(Exchange.BYBIT, (event) => {
+
+  streamCn.onSubscribe$({ exchange: Exchange.BYBIT }).subscribe((event) => {
     console.log(event);
   });
   setTimeout(() => {
-    streamCn.subscribe(Exchange.BYBIT, { symbol: "kline.1.BTCUSDT" });
+    streamCn.subscribe({
+      exchange: Exchange.BYBIT,
+      data: { symbols: ["kline.1.BTCUSDT"] },
+    });
   }, 3000);
 }
 

@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 
 const $EventData = {
   subscribe: z.object({
-    symbol: z.string(),
+    symbols: z.array(z.string()),
   }),
 };
 type EventData = {
@@ -19,26 +19,21 @@ export const $StreamCnEvent = z.object({
 export type StreamChEvent = z.infer<typeof $StreamCnEvent>;
 
 class StreamChannel extends ExchangeChannel<StreamChEvent> {
-  subscribe(exchange: Exchange, data: EventData["subscribe"]) {
+  subscribe(params: { exchange: Exchange; data: EventData["subscribe"] }) {
     this.emit({
-      exchange,
+      exchange: params.exchange,
       data: {
         category: "subscribe",
-        data,
+        data: params.data,
       },
     });
   }
 
-  onSubscribe(
-    exchange: Exchange,
-    handler: (data: EventData["subscribe"]) => void,
-  ) {
-    return this.get$(exchange)
-      .pipe(
-        filter((event) => event.category === "subscribe"),
-        map((event) => $EventData[event.category].parse(event.data)),
-      )
-      .subscribe(handler);
+  onSubscribe$(params: Parameters<typeof this.on$>[0]) {
+    return this.on$(params).pipe(
+      filter((event) => event.category === "subscribe"),
+      map((event) => $EventData[event.category].parse(event.data)),
+    );
   }
 }
 
