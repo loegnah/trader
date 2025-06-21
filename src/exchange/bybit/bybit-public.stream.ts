@@ -1,7 +1,11 @@
+import { streamCn } from "@/channel/stream.channel";
 import { convertBybitKlineEventToCandle } from "@/exchange/bybit/bybit.util";
 import { ExchangeStreamPublic } from "@/model/ex-stream.model";
+import { Exchange } from "@/model/ex.model";
 import { logger } from "@/util/logger";
 import { WebsocketClient } from "bybit-api";
+
+const EX = Exchange.BYBIT;
 
 export class BybitStreamPublic extends ExchangeStreamPublic {
   private stream: WebsocketClient;
@@ -16,11 +20,11 @@ export class BybitStreamPublic extends ExchangeStreamPublic {
   }
 
   async init() {
-    this.setupHandler();
-    this.stream.subscribeV5("kline.1.BTCUSDT", "linear");
+    this.setupStreamListener();
+    this.setupChannelListener();
   }
 
-  setupHandler() {
+  private setupStreamListener() {
     this.stream.on("close", () => {
       logger.warn("[bybit-stream-public] connection closed");
     });
@@ -34,7 +38,14 @@ export class BybitStreamPublic extends ExchangeStreamPublic {
     });
   }
 
-  handleKlineEvent(event: any) {
+  private setupChannelListener() {
+    streamCn.onSubscribe(EX, ({ symbol }) => {
+      this.stream.subscribeV5(symbol, "linear");
+      logger.info(`[bybit-stream-public] subscribed to ${symbol}`);
+    });
+  }
+
+  private handleKlineEvent(event: any) {
     const candle = convertBybitKlineEventToCandle(event);
     if (!candle) {
       console.log("candle is null");
