@@ -1,3 +1,4 @@
+import { candleChannel } from "@/channel/candle.channel";
 import { streamCn } from "@/channel/stream.channel";
 import { convertBybitKlineEventToCandle } from "@/exchange/bybit/bybit.util";
 import { ExchangeStreamPublic } from "@/model/ex-stream.model";
@@ -48,10 +49,17 @@ export class BybitStreamPublic extends ExchangeStreamPublic {
   }
 
   private handleKlineEvent(event: any) {
-    const candle = convertBybitKlineEventToCandle(event);
+    const candle = convertBybitKlineEventToCandle(event.data);
     if (!candle) {
-      console.log("candle is null");
+      logger.warn("[bybit-stream-public] candle is null");
+      return;
     }
-    console.log(`cur price: ${candle?.close}`);
+    candleChannel.emit({
+      exchange: EX,
+      data: {
+        symbol: event.topic,
+        data: candle,
+      },
+    });
   }
 }
