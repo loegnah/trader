@@ -27,9 +27,11 @@ export class OutlierBot extends Bot {
     },
     {} as { [key in string]: OutlierConfig },
   );
-  private readonly outlierCache = new TTLCache<string, { changed: number }>({
-    ttl: 1000 * ENV.BOT_OUTLIER_MSG_TTL,
-  });
+  private readonly outlierCache = new TTLCache<string, { changeRatio: number }>(
+    {
+      ttl: 1000 * ENV.BOT_OUTLIER_MSG_TTL,
+    },
+  );
 
   constructor(params: { exc: Exchange }) {
     super();
@@ -69,9 +71,12 @@ export class OutlierBot extends Bot {
   private handleCandleLive(topic: string, candle: Candle) {
     const config = this.configMap[topic];
     if (!config) return;
-    const retCheckOutlier = checkOutlierCandle(candle, config.threshold);
-    if (retCheckOutlier?.isOutlier) {
-      this.handleOutlier(topic, retCheckOutlier.changed);
+    const { isOutlier, changeRatio } = checkOutlierCandle(
+      candle,
+      config.threshold,
+    );
+    if (isOutlier) {
+      this.handleOutlier(topic, changeRatio);
     }
   }
 
@@ -79,26 +84,32 @@ export class OutlierBot extends Bot {
     this.resetCache();
   }
 
-  private handleOutlier(topic: string, changed: number) {
+  private handleOutlier(topic: string, changeRatio: number) {
+    if (!this.configMap[topic]) return;
+
     let shouldSendMessage = false;
     const cachedData = this.outlierCache.get(topic);
 
-    if (!cachedData) {
+    if (
+      !cachedData || // New data
+      Math.sign(changeRatio) !== Math.sign(cachedData.changeRatio) // different direction
+    ) {
       shouldSendMessage = true;
     } else {
-      const changedDiff = Math.abs(changed - cachedData.changed);
-      shouldSendMessage = changedDiff >= this.configMap[topic]!.step;
+      const changedDiff = Math.abs(changeRatio - cachedData.changeRatio);
+      shouldSendMessage = changedDiff >= this.configMap[topic].step; // step over
     }
 
     if (shouldSendMessage) {
-      this.outlierCache.set(topic, { changed: changed });
+      this.outlierCache.set(topic, { changeRatio: changeRatio });
       logger.info(
-        `[outlier-bot] ${topic} is outlier! (${changed.toFixed(2)}%)`,
+        { topic, changeRatio: changeRatio.toFixed(2) },
+        `[outlier-bot] Outlier detected`,
       );
       sendDiscordMsgToUser({
-        title: "Checked outlier",
+        title: "Outlier detected",
         topic,
-        changed: changed.toFixed(2),
+        changed: changeRatio.toFixed(2),
       });
     }
   }
