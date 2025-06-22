@@ -32,5 +32,8 @@ export const ENV = z
     DISCORD_BOT_CMD_LISTEN: zBoolean().default(false),
     DISCORD_BOT_CMD_RESET: zBoolean().default(false),
     DISCORD_BOT_SEND_MSG: zBoolean().default(false),
+
+    // Bot
+    BOT_OUTLIER_MSG_TTL: z.coerce.number(),
   })
   .parse(dotenv.config({ path: [".env"] }).parsed);

@@ -5,12 +5,14 @@ import {
 } from "@/bot/outlier/outlier.stg";
 import { candleChannel } from "@/channel/candle.channel";
 import { streamCn } from "@/channel/stream.channel";
+import { ENV } from "@/env";
 import { Bot } from "@/model/bot.model";
 import type { Candle } from "@/model/candle.model";
 import { Exchange } from "@/model/ex.model";
 import { candleChangeRatio } from "@/util/candle.util";
 import { sendDiscordMsgToUser } from "@/util/discord.util";
 import { logger } from "@/util/logger";
+import TTLCache from "@isaacs/ttlcache";
 import { groupBy, mergeMap, throttleTime } from "rxjs";
 
 const THROTTLE_TIME = 1000;
@@ -25,6 +27,9 @@ export class OutlierBot extends Bot {
     },
     {} as { [key in string]: OutlierConfig },
   );
+  private readonly outlierCache = new TTLCache<string, { changed: number }>({
+    ttl: 1000 * ENV.BOT_OUTLIER_MSG_TTL,
+  });
 
   constructor(params: { exc: Exchange }) {
     super();
@@ -58,15 +63,7 @@ export class OutlierBot extends Bot {
   private handleCandle(symbol: string, candle: Candle) {
     const retCheckOutlier = this.checkOutlier(symbol, candle);
     if (retCheckOutlier?.isOutlier) {
-      const { changed } = retCheckOutlier;
-      logger.info(
-        `[outlier-bot] ${symbol} is outlier! (${changed.toFixed(2)}%)`,
-      );
-      sendDiscordMsgToUser({
-        title: "Checked outlier",
-        symbol,
-        changed: changed.toFixed(2),
-      });
+      this.handleOutlier(symbol, retCheckOutlier.changed);
     }
   }
 
@@ -76,5 +73,29 @@ export class OutlierBot extends Bot {
 
     const changed = candleChangeRatio(candle) * 100;
     return { changed, isOutlier: Math.abs(changed) > config.threshold };
+  }
+
+  private handleOutlier(symbol: string, changed: number) {
+    let shouldSendMessage = false;
+    const cachedData = this.outlierCache.get(symbol);
+
+    if (!cachedData) {
+      shouldSendMessage = true;
+    } else {
+      const changedDiff = Math.abs(changed - cachedData.changed);
+      shouldSendMessage = changedDiff >= this.configMap[symbol]!.step;
+    }
+
+    if (shouldSendMessage) {
+      this.outlierCache.set(symbol, { changed: changed });
+      logger.info(
+        `[outlier-bot] ${symbol} is outlier! (${changed.toFixed(2)}%)`,
+      );
+      sendDiscordMsgToUser({
+        title: "Checked outlier",
+        symbol,
+        changed: changed.toFixed(2),
+      });
+    }
   }
 }

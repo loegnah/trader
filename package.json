@@ -16,6 +16,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@isaacs/ttlcache": "^1.4.1",
     "bybit-api": "^4.1.10",
     "chalk": "^5.4.1",
     "dayjs": "^1.11.13",
