@@ -1,3 +1,4 @@
+import { checkOutlierCandle } from "@/bot/outlier/outlier.lib";
 import {
   OUTLIER_CONFIG_LIST,
   OUTLIER_TOPICS,
@@ -9,7 +10,6 @@ import { ENV } from "@/env";
 import { Bot } from "@/model/bot.model";
 import type { Candle } from "@/model/candle.model";
 import { Exchange } from "@/model/ex.model";
-import { candleChangeRatio } from "@/util/candle.util";
 import { sendDiscordMsgToUser } from "@/util/discord.util";
 import { logger } from "@/util/logger";
 import TTLCache from "@isaacs/ttlcache";
@@ -67,7 +67,9 @@ export class OutlierBot extends Bot {
   }
 
   private handleCandleLive(topic: string, candle: Candle) {
-    const retCheckOutlier = this.checkOutlier(topic, candle);
+    const config = this.configMap[topic];
+    if (!config) return;
+    const retCheckOutlier = checkOutlierCandle(candle, config.threshold);
     if (retCheckOutlier?.isOutlier) {
       this.handleOutlier(topic, retCheckOutlier.changed);
     }
@@ -75,14 +77,6 @@ export class OutlierBot extends Bot {
 
   private handleCandleConfirmed(_topic: string, _candle: Candle) {
     this.resetCache();
-  }
-
-  private checkOutlier(topic: string, candle: Candle) {
-    const config = this.configMap[topic];
-    if (!config) return;
-
-    const changed = candleChangeRatio(candle) * 100;
-    return { changed, isOutlier: Math.abs(changed) > config.threshold };
   }
 
   private handleOutlier(topic: string, changed: number) {
