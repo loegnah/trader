@@ -19,9 +19,9 @@ const OUTLIER_CONFIG_RAW_LIST: any[] = [
 ];
 
 export const OUTLIER_CONFIG_LIST: [string, OutlierConfig][] =
-  OUTLIER_CONFIG_RAW_LIST.map(([symbol, threshold, step]) => {
+  OUTLIER_CONFIG_RAW_LIST.map(([topic, threshold, step]) => {
     return [
-      symbol,
+      topic,
       {
         threshold: threshold ?? 2.5,
         step: step ?? 0.4,
@@ -29,6 +29,6 @@ export const OUTLIER_CONFIG_LIST: [string, OutlierConfig][] =
     ];
   });
 
-export const OUTLIER_SYMBOLS: string[] = OUTLIER_CONFIG_LIST.map(
-  ([symbol]) => symbol,
+export const OUTLIER_TOPICS: string[] = OUTLIER_CONFIG_LIST.map(
+  ([topic]) => topic,
 );

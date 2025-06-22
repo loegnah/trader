@@ -1,6 +1,6 @@
 import {
   OUTLIER_CONFIG_LIST,
-  OUTLIER_SYMBOLS,
+  OUTLIER_TOPICS,
   type OutlierConfig,
 } from "@/bot/outlier/outlier.stg";
 import { candleChannel } from "@/channel/candle.channel";
@@ -21,8 +21,8 @@ export class OutlierBot extends Bot {
   private readonly NAME = "Candle outlier checker";
   private readonly exc: Exchange;
   private readonly configMap = OUTLIER_CONFIG_LIST.reduce(
-    (acc, [symbol, config]) => {
-      acc[symbol] = config;
+    (acc, [topic, config]) => {
+      acc[topic] = config;
       return acc;
     },
     {} as { [key in string]: OutlierConfig },
@@ -44,7 +44,7 @@ export class OutlierBot extends Bot {
   private async reqSubscribe() {
     streamCn.subscribe({
       exchange: this.exc,
-      data: { symbols: OUTLIER_SYMBOLS },
+      data: { topics: OUTLIER_TOPICS },
     });
   }
 
@@ -52,50 +52,64 @@ export class OutlierBot extends Bot {
     candleChannel
       .onLive$({ exchange: this.exc })
       .pipe(
-        groupBy(({ symbol }) => symbol),
+        groupBy(({ topic }) => topic),
         mergeMap((group$) => group$.pipe(throttleTime(THROTTLE_TIME))),
       )
-      .subscribe(({ symbol, data: candle }) =>
-        this.handleCandle(symbol, candle),
+      .subscribe(({ topic, data: candle }) =>
+        this.handleCandleLive(topic, candle),
+      );
+
+    candleChannel
+      .onConfirmed$({ exchange: this.exc })
+      .subscribe(({ topic, data: candle }) =>
+        this.handleCandleConfirmed(topic, candle),
       );
   }
 
-  private handleCandle(symbol: string, candle: Candle) {
-    const retCheckOutlier = this.checkOutlier(symbol, candle);
+  private handleCandleLive(topic: string, candle: Candle) {
+    const retCheckOutlier = this.checkOutlier(topic, candle);
     if (retCheckOutlier?.isOutlier) {
-      this.handleOutlier(symbol, retCheckOutlier.changed);
+      this.handleOutlier(topic, retCheckOutlier.changed);
     }
   }
 
-  private checkOutlier(symbol: string, candle: Candle) {
-    const config = this.configMap[symbol];
+  private handleCandleConfirmed(_topic: string, _candle: Candle) {
+    this.resetCache();
+  }
+
+  private checkOutlier(topic: string, candle: Candle) {
+    const config = this.configMap[topic];
     if (!config) return;
 
     const changed = candleChangeRatio(candle) * 100;
     return { changed, isOutlier: Math.abs(changed) > config.threshold };
   }
 
-  private handleOutlier(symbol: string, changed: number) {
+  private handleOutlier(topic: string, changed: number) {
     let shouldSendMessage = false;
-    const cachedData = this.outlierCache.get(symbol);
+    const cachedData = this.outlierCache.get(topic);
 
     if (!cachedData) {
       shouldSendMessage = true;
     } else {
       const changedDiff = Math.abs(changed - cachedData.changed);
-      shouldSendMessage = changedDiff >= this.configMap[symbol]!.step;
+      shouldSendMessage = changedDiff >= this.configMap[topic]!.step;
     }
 
     if (shouldSendMessage) {
-      this.outlierCache.set(symbol, { changed: changed });
+      this.outlierCache.set(topic, { changed: changed });
       logger.info(
-        `[outlier-bot] ${symbol} is outlier! (${changed.toFixed(2)}%)`,
+        `[outlier-bot] ${topic} is outlier! (${changed.toFixed(2)}%)`,
       );
       sendDiscordMsgToUser({
         title: "Checked outlier",
-        symbol,
+        topic,
         changed: changed.toFixed(2),
       });
     }
+  }
+
+  private resetCache() {
+    this.outlierCache.clear();
   }
 }

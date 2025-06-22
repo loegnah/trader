@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 
 const $EventData = {
   subscribe: z.object({
-    symbols: z.array(z.string()),
+    topics: z.array(z.string()),
   }),
 };
 

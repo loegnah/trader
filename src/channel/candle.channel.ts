@@ -4,7 +4,7 @@ import { filter } from "rxjs";
 import { z } from "zod/v4";
 
 export const $CandleChEvent = z.object({
-  symbol: z.string(),
+  topic: z.string(),
   data: $Candle,
 });
 

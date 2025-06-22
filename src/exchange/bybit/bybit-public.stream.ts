@@ -40,11 +40,9 @@ export class BybitStreamPublic extends ExchangeStreamPublic {
   }
 
   private setupChannelListener() {
-    streamCn.onSubscribe$({ exchange: EX }).subscribe(({ symbols }) => {
-      this.stream.subscribeV5(symbols, "linear");
-      logger.info(
-        `[bybit-stream-public] subscribed to (${symbols.join(", ")})`,
-      );
+    streamCn.onSubscribe$({ exchange: EX }).subscribe(({ topics }) => {
+      this.stream.subscribeV5(topics, "linear");
+      logger.info(`[bybit-stream-public] subscribed to (${topics.join(", ")})`);
     });
   }
 
@@ -57,7 +55,7 @@ export class BybitStreamPublic extends ExchangeStreamPublic {
     candleChannel.emit({
       exchange: EX,
       data: {
-        symbol: event.topic,
+        topic: event.topic,
         data: candle,
       },
     });
