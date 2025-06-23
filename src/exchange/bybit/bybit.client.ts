@@ -1,49 +1,53 @@
 import { ExchangeClient } from "@/model/ex-client.model";
 import { RestClientV5 } from "bybit-api";
+import { floor } from "es-toolkit/compat";
 
 export class BybitClient extends ExchangeClient<RestClientV5> {
   protected client: RestClientV5;
 
-  constructor({
-    apiKey: key,
-    apiSecret: secret,
-    testnet,
-    demoTrading,
-  }: {
+  constructor(params: {
     apiKey: string;
     apiSecret: string;
-    testnet: boolean;
-    demoTrading: boolean;
+    isDemoTrading?: boolean;
+    isTestnet?: boolean;
   }) {
     super();
-    this.client = new RestClientV5({ key, secret, testnet, demoTrading });
+    this.client = new RestClientV5({
+      key: params.apiKey,
+      secret: params.apiSecret,
+      demoTrading: params.isDemoTrading,
+      testnet: params.isTestnet,
+    });
   }
 
   getClient$() {
     return this.client;
   }
 
-  // async getAvailableBalance({
-  //   coinName = "USDT",
-  // }: {
-  //   coinName?: string;
-  // }): Promise<number> {
-  //   const ret = await this.bybit.getWalletBalance({
-  //     accountType: "UNIFIED",
-  //     coin: "USDT",
-  //   });
-  //   const coins = ret.result.list[0].coin;
-  //   if (!coins) {
-  //     throw new Error("No coins found");
-  //   }
-  //   const targetCoin = coins.find((coin) => coin.coin === coinName);
-  //   if (!targetCoin) {
-  //     throw new Error(`No ${coinName} found`);
-  //   }
-  //   const walletBalance = Number(targetCoin.walletBalance); // (증거금까지 포함한) 코인 잔액
-  //   const totalPositionIM = Number(targetCoin.totalPositionIM); // 전체 포지션 증거금 총합
-  //   return floor(walletBalance - totalPositionIM, 2);
-  // }
+  async getAvailableBalance({
+    coinName,
+  }: {
+    coinName: string; // e.g. USDT
+  }): Promise<number> {
+    const ret = await this.client.getWalletBalance({
+      accountType: "UNIFIED",
+      coin: coinName,
+    });
+    if (ret.result.list.length === 0) {
+      throw new Error("[getAvailableBalance] Failed to get wallet balance");
+    }
+    const coins = ret.result.list[0]?.coin;
+    if (!coins) {
+      throw new Error("[getAvailableBalance] No coins found");
+    }
+    const targetCoin = coins.find((coin) => coin.coin === coinName);
+    if (!targetCoin) {
+      throw new Error(`[getAvailableBalance] No ${coinName} found`);
+    }
+    const walletBalance = Number(targetCoin.walletBalance); // (증거금까지 포함한) 코인 잔액
+    const totalPositionIM = Number(targetCoin.totalPositionIM); // 전체 포지션 증거금 총합
+    return floor(walletBalance - totalPositionIM, 2);
+  }
 
   // // 캔들 가져옴. (0번 인덱스가 제일 최신 캔들)
   // async getCandles({
