@@ -14,7 +14,7 @@ export class BybitStreamPrivate extends ExchangeStreamPrivate {
     this.stream = new WebsocketClient({
       key: params.apiKey,
       secret: params.apiSecret,
-      demoTrading: false, // Not support in demo trading
+      demoTrading: params.isDemoTrading,
       testnet: params.isTestnet,
     });
   }
