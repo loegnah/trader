@@ -1,4 +1,4 @@
-import { Subject, filter, map, share, tap } from "rxjs";
+import { Subject, filter, map, share } from "rxjs";
 import { z } from "zod/v4";
 
 const $EventData = {

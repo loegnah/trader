@@ -4,7 +4,7 @@ import { BybitStreamPrivate } from "@/exchange/bybit/bybit-private.stream";
 import { BybitStreamPublic } from "@/exchange/bybit/bybit-public.stream";
 import { BybitClient } from "@/exchange/bybit/bybit.client";
 import { discord } from "@/lib/discord/discord";
-import { Exchange } from "@/model/ex.model";
+import { Exchange } from "./type/trade.type";
 
 async function main() {
   const bybitStreamPrivate = new BybitStreamPrivate({

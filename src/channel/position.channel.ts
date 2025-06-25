@@ -1,5 +1,5 @@
 import { ExchangeChannel } from "@/channel/ex.channel";
-import { $Position } from "@/model/position.model";
+import { $Position } from "@/type/trade.type";
 import { z } from "zod/v4";
 
 export const $PositionChEvent = z.object({

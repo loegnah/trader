@@ -1,4 +1,4 @@
-import type { Exchange } from "@/model/ex.model";
+import type { Exchange } from "@/type/trade.type";
 import { Observable, Subject, filter, map, share } from "rxjs";
 
 export enum ExChannelType {

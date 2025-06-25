@@ -1,4 +1,4 @@
-import type { Candle } from "@/model/candle.model";
+import type { Candle } from "@/type/trade.type";
 import { candleChangeRatio } from "@/util/candle.util";
 
 export function checkOutlierCandle(candle: Candle, threshold: number) {

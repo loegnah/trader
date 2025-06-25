@@ -2,7 +2,7 @@ import { candleChannel } from "@/channel/candle.channel";
 import { streamCn } from "@/channel/stream.channel";
 import { convertBybitKlineEventToCandle } from "@/exchange/bybit/bybit.util";
 import { ExchangeStreamPublic } from "@/model/ex-stream.model";
-import { Exchange } from "@/model/ex.model";
+import { Exchange } from "@/type/trade.type";
 import { logger } from "@/util/logger";
 import { WebsocketClient } from "bybit-api";
 

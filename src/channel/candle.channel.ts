@@ -1,5 +1,5 @@
 import { ExchangeChannel } from "@/channel/ex.channel";
-import { $Candle } from "@/model/candle.model";
+import { $Candle } from "@/type/trade.type";
 import { filter } from "rxjs";
 import { z } from "zod/v4";
 

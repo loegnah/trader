@@ -1,5 +1,5 @@
 import { ExchangeChannel } from "@/channel/ex.channel";
-import type { Exchange } from "@/model/ex.model";
+import type { Exchange } from "@/type/trade.type";
 import { filter, map } from "rxjs";
 import { z } from "zod/v4";
 
