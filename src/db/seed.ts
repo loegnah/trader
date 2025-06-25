@@ -1,4 +1,4 @@
-import { schema } from "@/db/schema";
+import { dbSchema } from "@/db";
 import { ENV } from "@/env";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { reset, seed } from "drizzle-seed";
@@ -11,8 +11,8 @@ async function doSeed() {
   console.log("[Seeding] Start");
 
   const db = drizzle(ENV.DB_URL);
-  await reset(db, schema);
-  await seed(db, schema);
+  await reset(db, dbSchema);
+  await seed(db, dbSchema);
 
   console.log("[Seeding] Done");
 }
