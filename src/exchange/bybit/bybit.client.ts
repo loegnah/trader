@@ -1,7 +1,17 @@
+import { convertBybitKlinesToCandles } from "@/exchange/bybit/bybit.util";
 import { ExchangeClient } from "@/model/ex-client.model";
+import {
+  type Candle,
+  type TInterval,
+  type TLimit,
+  type TSymbol,
+  type TTimeStamp,
+} from "@/type/trade.type";
 import { RestClientV5 } from "bybit-api";
+import dayjs from "dayjs";
 import { floor } from "es-toolkit/compat";
 
+const CATEGORY = "linear";
 export class BybitClient extends ExchangeClient<RestClientV5> {
   protected client: RestClientV5;
 
@@ -20,7 +30,7 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
     });
   }
 
-  getClient$() {
+  client$() {
     return this.client;
   }
 
@@ -49,35 +59,26 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
     return floor(walletBalance - totalPositionIM, 2);
   }
 
-  // // 캔들 가져옴. (0번 인덱스가 제일 최신 캔들)
-  // async getCandles({
-  //   symbol,
-  //   interval,
-  //   count,
-  //   endTimeStamp = dayjs().valueOf(), // default 현재 (즉 최신데이터를 가져온다는 뜻)
-  // }: {
-  //   symbol: string;
-  //   interval: KlineIntervalV3;
-  //   count: number;
-  //   endTimeStamp?: number;
-  // }): Promise<Candle[]> {
-  //   const candlesRaw = await this.bybit
-  //     .getKline({
-  //       category: "linear",
-  //       symbol,
-  //       interval,
-  //       end: endTimeStamp,
-  //       limit: count + 1, // 최신은 미완성이라서 밑에서 삭제하기 위함
-  //     })
-  //     .then((res) => res.result.list);
-  //   return candlesRaw.slice(1).map((data) => ({
-  //     start: Number(data[0]),
-  //     open: Number(data[1]),
-  //     high: Number(data[2]),
-  //     low: Number(data[3]),
-  //     close: Number(data[4]),
-  //   }));
-  // }
+  // 캔들 가져옴. (0번 인덱스가 제일 최신 캔들)
+  async getCandles(args: {
+    symbol: TSymbol;
+    interval: TInterval;
+    limit: TLimit;
+    endTimeStamp?: TTimeStamp;
+    withNowCandle?: boolean;
+  }): Promise<Candle[]> {
+    const rawKlines = await this.client
+      .getKline({
+        category: CATEGORY,
+        symbol: args.symbol,
+        interval: args.interval,
+        end: args.endTimeStamp ?? dayjs().valueOf(),
+        limit: args.limit + 1, // 최신은 미완성이라서 밑에서 삭제하기 위함
+      })
+      .then((res) => res.result.list);
+    const slicedRawKlines = args.withNowCandle ? rawKlines : rawKlines.slice(1);
+    return convertBybitKlinesToCandles(slicedRawKlines);
+  }
 
   // async getOhlcs({
   //   symbol,

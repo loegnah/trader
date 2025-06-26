@@ -18,7 +18,7 @@ async function main() {
   });
   await bybitStreamPublic.init();
   await bybitStreamPrivate.init();
-  await discord.init();
+  // await discord.init();
 
   const outlierBot = new OutlierBot({ exc: Exchange.BYBIT });
   await outlierBot.init();
@@ -33,6 +33,12 @@ async function main() {
     coinName: "USDT",
   });
   console.log(availableBalance);
+  const candles = await bybitClient.getCandles({
+    symbol: "BTCUSDT",
+    interval: "1",
+    limit: 1,
+  });
+  console.log(candles);
 }
 
 main();
