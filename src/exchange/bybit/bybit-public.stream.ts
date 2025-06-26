@@ -47,8 +47,8 @@ export class BybitStreamPublic extends ExchangeStreamPublic {
   }
 
   private handleKlineEvent(event: any) {
-    const candle = convertBybitKlineEventToCandle(event.data);
-    if (!candle) {
+    const ret = convertBybitKlineEventToCandle(event.data);
+    if (!ret) {
       logger.warn("[bybit-stream-public] candle is null");
       return;
     }
@@ -56,7 +56,8 @@ export class BybitStreamPublic extends ExchangeStreamPublic {
       exchange: EX,
       data: {
         topic: event.topic,
-        data: candle,
+        data: ret.candle,
+        confirm: ret.confirm,
       },
     });
   }
