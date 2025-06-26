@@ -18,7 +18,7 @@ async function main() {
   });
   await bybitStreamPublic.init();
   await bybitStreamPrivate.init();
-  // await discord.init();
+  await discord.init();
 
   const outlierBot = new OutlierBot({ exc: Exchange.BYBIT });
   await outlierBot.init();
@@ -29,16 +29,10 @@ async function main() {
     isDemoTrading: ENV.BYBIT_IS_DEMO_TRADING,
     isTestnet: ENV.BYBIT_IS_TESTNET,
   });
-  const availableBalance = await bybitClient.getAvailableBalance({
-    coinName: "USDT",
-  });
-  console.log(availableBalance);
-  const candles = await bybitClient.getCandles({
-    symbol: "BTCUSDT",
-    interval: "1",
-    limit: 1,
-  });
-  console.log(candles);
+  const pos = await bybitClient.getPositionInfo({ symbol: "BTCUSDT" });
+  const leverage = await bybitClient.getLeverage({ symbol: "BTCUSDT" });
+  console.log(leverage);
+  console.log(pos?.leverage);
 }
 
 main();

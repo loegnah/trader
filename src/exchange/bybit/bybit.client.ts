@@ -1,15 +1,25 @@
 import { convertBybitKlinesToCandles } from "@/exchange/bybit/bybit.util";
 import { ExchangeClient } from "@/model/ex-client.model";
 import {
+  $PositionInfo,
+  $TSide,
   type Candle,
   type TInterval,
   type TLimit,
+  type TOrderType,
+  type TQty,
+  type TSide,
   type TSymbol,
+  type TTimeInForce,
   type TTimeStamp,
 } from "@/type/trade.type";
+import { logger } from "@/util/logger";
+import { roundDownToUnit } from "@/util/number.util";
+import { invertSide } from "@/util/side.util";
 import { RestClientV5 } from "bybit-api";
 import dayjs from "dayjs";
 import { floor } from "es-toolkit/compat";
+import { get } from "radashi";
 
 const CATEGORY = "linear";
 export class BybitClient extends ExchangeClient<RestClientV5> {
@@ -80,6 +90,38 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
     return convertBybitKlinesToCandles(slicedRawKlines);
   }
 
+  async getPositionInfo(params: {
+    symbol?: string;
+    settleCoin?: string;
+  }) {
+    const data = await this.client.getPositionInfo({
+      category: CATEGORY,
+      symbol: params.symbol,
+      settleCoin: params.settleCoin ?? "USDT",
+    });
+    return data.result.list.find((pos) => pos.symbol === params.symbol);
+  }
+
+  async getPositionInfos(params: { symbol?: string }) {
+    const data = await this.client.getPositionInfo({
+      category: CATEGORY,
+      symbol: params.symbol,
+    });
+    return data.result.list;
+  }
+
+  async getQtyStep(params: { symbol: TSymbol }): Promise<number> {
+    const info = await this.client.getInstrumentsInfo({
+      category: CATEGORY,
+      symbol: params.symbol,
+    });
+    const qtyStep = get(info.result.list, "0.lotSizeFilter.qtyStep");
+    if (!qtyStep) {
+      throw new Error("[getQtyStep] No qty step found");
+    }
+    return Number(qtyStep);
+  }
+
   // async getOhlcs({
   //   symbol,
   //   interval,
@@ -96,216 +138,181 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
   //   return reverse ? ohlcs.reverse() : ohlcs;
   // }
 
-  // async createOrder(params: {
-  //   side: Side;
-  //   orderType: "Market" | "Limit";
-  //   symbol: string;
-  //   qty: string;
-  //   price?: number;
-  //   tpPrice?: number; // not percent, just base coin value
-  //   slPrice?: number; // not percent, just base coin value
-  //   reduceOnly?: boolean;
-  // }) {
-  //   return this.bybit.submitOrder({
-  //     category: "linear",
-  //     side: params.side,
-  //     orderType: params.orderType,
-  //     price: params.price?.toString(),
-  //     symbol: params.symbol,
-  //     qty: params.qty,
-  //     tpslMode: "Full",
-  //     takeProfit: params.tpPrice?.toString(),
-  //     stopLoss: params.slPrice?.toString(),
-  //     isLeverage: 1,
-  //     timeInForce: "GTC", // 디폴트긴 함
-  //     reduceOnly: params.reduceOnly,
-  //   });
-  // }
+  async createOrder(params: {
+    side: TSide;
+    orderType: TOrderType;
+    symbol: TSymbol;
+    qty: TQty;
+    price?: number;
+    tpPrice?: number; // not percent, just base coin value
+    slPrice?: number; // not percent, just base coin value
+    reduceOnly?: boolean;
+    timeInForce?: TTimeInForce;
+  }) {
+    return this.client.submitOrder({
+      category: CATEGORY,
+      side: params.side,
+      orderType: params.orderType,
+      price: params.price?.toString(),
+      symbol: params.symbol,
+      qty: params.qty.toString(),
+      tpslMode: "Full",
+      takeProfit: params.tpPrice?.toString(),
+      stopLoss: params.slPrice?.toString(),
+      isLeverage: 1,
+      timeInForce: params.timeInForce ?? "GTC",
+      reduceOnly: params.reduceOnly ?? false,
+    });
+  }
 
-  // async amendTpSlOrder(params: {
-  //   symbol: string;
-  //   orderId: string;
-  //   price: number;
-  // }) {
-  //   return this.bybit.amendOrder({
-  //     category: "linear",
-  //     symbol: params.symbol,
-  //     orderId: params.orderId,
-  //     triggerPrice: params.price.toString(),
-  //   });
-  // }
+  async cancelOrder(params: { symbol: TSymbol; orderId: string }) {
+    return this.client.cancelOrder({
+      category: CATEGORY,
+      symbol: params.symbol,
+      orderId: params.orderId,
+    });
+  }
 
-  // async cancelOrder({ symbol, orderId }: { symbol: string; orderId: string }) {
-  //   return this.bybit.cancelOrder({ category: "linear", symbol, orderId });
-  // }
+  async cancelAllOrders(params: { symbol: TSymbol }) {
+    return this.client.cancelAllOrders({
+      category: CATEGORY,
+      symbol: params.symbol,
+    });
+  }
 
-  // async clearAllOrders({ symbol }: { symbol: string }) {
-  //   return this.bybit.cancelAllOrders({ category: "linear", symbol });
-  // }
+  // ------------- position -------------
 
-  // async closePosition({
-  //   symbol,
-  //   side,
-  //   qty,
-  // }: {
-  //   symbol: string;
-  //   side: Side;
-  //   qty: string;
-  // }) {
-  //   return this.bybit
-  //     .submitOrder({
-  //       category: "linear",
-  //       orderType: "Market",
-  //       reduceOnly: true,
-  //       side,
-  //       symbol,
-  //       qty,
-  //     })
-  //     .then((ret) => {
-  //       if (ret.retCode !== 0) {
-  //         throw new Error(ret.retMsg);
-  //       }
-  //     });
-  // }
+  async closePosition(params: {
+    symbol: TSymbol;
+    orderType?: TOrderType;
+    side: TSide;
+    qty: TQty;
+    price?: number;
+  }) {
+    return this.client.submitOrder({
+      category: CATEGORY,
+      orderType: params.orderType ?? "Market",
+      side: params.side,
+      symbol: params.symbol,
+      qty: params.qty.toString(),
+      reduceOnly: true,
+      price: params.price?.toString(),
+    });
+  }
 
-  // async closePositionByPortion({
-  //   symbol,
-  //   portion,
-  // }: {
-  //   symbol: string;
-  //   portion: number;
-  // }) {
-  //   const positionInfo = await this.getPositionInfo({ symbol });
-  //   if (!positionInfo) {
-  //     throw new Error("No position found");
-  //   }
-  //   const qtyStep = await this.getQtyStep({ symbol });
-  //   const qty = roundDownToUnit(Number(positionInfo.size) * portion, qtyStep);
-  //   return this.closePosition({
-  //     symbol,
-  //     side: getOppositeSide(positionInfo.side as Side),
-  //     qty: qty.toString(),
-  //   });
-  // }
+  async closeAllPositions(params: { symbol?: string }) {
+    const positions = await this.getPositionInfos({
+      symbol: params.symbol,
+    });
+
+    for (const pos of positions) {
+      const { symbol, size, side } = $PositionInfo.parse(pos);
+      if (size === 0) continue;
+
+      await this.closePosition({
+        symbol,
+        side,
+        qty: size,
+      });
+    }
+  }
+
+  async closePositionByPortion(params: {
+    symbol: TSymbol;
+    portion: number;
+  }) {
+    const [positionInfo, qtyStep] = await Promise.all([
+      this.getPositionInfo({ symbol: params.symbol }),
+      this.getQtyStep({ symbol: params.symbol }),
+    ]);
+    if (!positionInfo) {
+      throw new Error("[closePositionByPortion] No position found");
+    }
+    const qty = roundDownToUnit(
+      Number(positionInfo.size) * params.portion,
+      qtyStep,
+    );
+    return this.closePosition({
+      symbol: params.symbol,
+      side: invertSide($TSide.parse(positionInfo.side)),
+      qty,
+    });
+  }
 
   // async closeAll({ symbol }: { symbol: string }) {
   //   await this.closeAllPositions({ symbol });
   //   await this.clearAllOrders({ symbol });
   // }
 
-  // async closeAllPositions({ symbol }: { symbol?: string }) {
-  //   const data = await this.bybit.getPositionInfo({
-  //     symbol,
-  //     category: "linear",
-  //   });
+  // ------------- tp/sl -------------
 
-  //   if (!data.result.list || data.result.list.length === 0) {
-  //     return;
-  //   }
+  async setTpsl(params: {
+    symbol: TSymbol;
+    takeProfit?: number;
+    stopLoss?: number;
+  }) {
+    const ret = await this.client.setTradingStop({
+      category: CATEGORY,
+      symbol: params.symbol,
+      takeProfit: params.takeProfit?.toString(),
+      stopLoss: params.stopLoss?.toString(),
+      tpslMode: "Full",
+      positionIdx: 0,
+    });
+    if (ret.retMsg !== "OK") {
+      console.error(ret.retMsg);
+      throw new Error("[setTpsl] Failed to set tpsl");
+    }
+    return ret;
+  }
 
-  //   for (const pos of data.result.list) {
-  //     if (!pos.size || Number(pos.size) === 0) continue;
+  async amendTpSlOrder(params: {
+    symbol: string;
+    orderId: string;
+    price: number;
+  }) {
+    return this.client.amendOrder({
+      category: CATEGORY,
+      symbol: params.symbol,
+      orderId: params.orderId,
+      triggerPrice: params.price.toString(),
+    });
+  }
 
-  //     const symbol = pos.symbol;
-  //     const side = getOppositeSide(pos.side as Side);
-  //     const qty = pos.size;
+  // ------------- leverage -------------
 
-  //     try {
-  //       await this.closePosition({
-  //         symbol,
-  //         side,
-  //         qty,
-  //       });
-  //     } catch (_e) {}
-  //   }
-  // }
+  async getLeverage(params: { symbol: TSymbol }) {
+    const leverage = await this.getPositionInfo({
+      symbol: params.symbol,
+    }).then((res) => res?.leverage);
+    if (!leverage) {
+      throw new Error("[getLeverage] No leverage found");
+    }
+    return Number(leverage);
+  }
 
-  // async getPositionInfo({
-  //   symbol,
-  //   settleCoin,
-  // }: {
-  //   symbol?: string;
-  //   settleCoin?: string;
-  // }) {
-  //   const data = await this.bybit.getPositionInfo({
-  //     category: "linear",
-  //     settleCoin,
-  //     symbol,
-  //   });
-  //   if (data.result.list.length === 0) {
-  //     return null;
-  //   }
-  //   return data.result.list.find((pos) => pos.symbol === symbol);
-  // }
-
-  // async getLeverage({ symbol }: { symbol: string }) {
-  //   const positionInfo = await this.bybit.getPositionInfo({
-  //     category: "linear",
-  //     symbol,
-  //   });
-
-  //   return positionInfo.result.list.length
-  //     ? positionInfo.result.list[0].leverage
-  //     : null;
-  // }
-
-  // async setLeverage({
-  //   symbol,
-  //   leverage,
-  // }: {
-  //   symbol: string;
-  //   leverage: number;
-  // }) {
-  //   const curLeverage = await this.getLeverage({ symbol });
-  //   if (Number(curLeverage) === leverage) {
-  //     return;
-  //   }
-  //   const ret = await this.bybit.setLeverage({
-  //     category: "linear",
-  //     symbol,
-  //     buyLeverage: leverage.toString(),
-  //     sellLeverage: leverage.toString(),
-  //   });
-  //   if (ret.retMsg !== "OK") {
-  //     throw new Error(ret.retMsg);
-  //   }
-  //   return leverage;
-  // }
-
-  // async setTpsl({
-  //   symbol,
-  //   takeProfit,
-  //   stopLoss,
-  // }: {
-  //   symbol: string;
-  //   takeProfit?: number;
-  //   stopLoss?: number;
-  // }) {
-  //   const ret = await this.bybit.setTradingStop({
-  //     category: "linear",
-  //     symbol,
-  //     tpslMode: "Full",
-  //     positionIdx: 0,
-  //     takeProfit: takeProfit?.toString(),
-  //     stopLoss: stopLoss?.toString(),
-  //   });
-  //   if (ret.retMsg !== "OK") {
-  //     throw new Error(ret.retMsg);
-  //   }
-  //   return ret;
-  // }
-
-  // async getQtyStep({ symbol }: { symbol: string }): Promise<number> {
-  //   const info = await this.bybit.getInstrumentsInfo({
-  //     category: "linear",
-  //     symbol,
-  //   });
-  //   if (
-  //     !info.result.list.length ||
-  //     !info.result.list[0].lotSizeFilter.qtyStep
-  //   ) {
-  //     throw new Error("No qty step found");
-  //   }
-  //   return Number(info.result.list[0].lotSizeFilter.qtyStep);
-  // }
+  async setLeverage(params: {
+    symbol: TSymbol;
+    leverage: number;
+  }) {
+    const curLeverage = await this.getLeverage({ symbol: params.symbol });
+    if (curLeverage === params.leverage) {
+      return;
+    }
+    const ret = await this.client.setLeverage({
+      category: CATEGORY,
+      symbol: params.symbol,
+      buyLeverage: params.leverage.toString(),
+      sellLeverage: params.leverage.toString(),
+    });
+    if (ret.retMsg !== "OK") {
+      logger.error(
+        {
+          errorMsg: ret.retMsg,
+        },
+        "[setLeverage] Failed to set leverage",
+      );
+      throw new Error("[setLeverage] Failed to set leverage");
+    }
+  }
 }

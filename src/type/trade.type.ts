@@ -1,11 +1,18 @@
 import type { KlineIntervalV3 } from "bybit-api";
 import { z } from "zod/v4";
 
+// ---------------- enum ----------------
+export const $TSide = z.enum(["Buy", "Sell"]);
+
 // --------------- common ----------------
-export type TSymbol = string;
+export type TSymbol = string; // ex. BTCUSDT, ETHUSDT ...
 export type TInterval = KlineIntervalV3;
 export type TLimit = number;
 export type TTimeStamp = number;
+export type TSide = z.infer<typeof $TSide>;
+export type TOrderType = "Market" | "Limit";
+export type TQty = number;
+export type TTimeInForce = "GTC";
 
 // -------------- exchange --------------
 export enum Exchange {
@@ -32,8 +39,14 @@ export type CandleWithConfirm = z.infer<typeof $CandleWithConfirm>;
 
 // -------------- position --------------
 export const $Position = z.object();
-
 export type Position = z.infer<typeof $Position>;
+
+export const $PositionInfo = z.object({
+  symbol: z.string(),
+  size: z.coerce.number(),
+  side: $TSide,
+});
+export type PositionInfo = z.infer<typeof $PositionInfo>;
 
 // -------------- order --------------
 export const $Order = z.object();

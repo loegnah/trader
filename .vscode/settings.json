@@ -11,6 +11,7 @@
     "DOTUSDT",
     "LINKUSDT",
     "LTCUSDT",
+    "ohlcs",
     "OHLCV",
     "TRXUSDT",
     "ttlcache",
