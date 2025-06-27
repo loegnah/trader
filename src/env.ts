@@ -26,6 +26,7 @@ export const ENV = z
     BYBIT_IS_TESTNET: zBoolean().default(false),
 
     // Discord
+    DISCORD_IS_RUN: zBoolean().default(false),
     DISCORD_USER_ID: z.string(),
     DISCORD_BOT_ID: z.string(),
     DISCORD_BOT_TOKEN: z.string(),
@@ -34,6 +35,10 @@ export const ENV = z
     DISCORD_BOT_SEND_MSG: zBoolean().default(false),
 
     // Bot
-    BOT_OUTLIER_MSG_TTL: z.coerce.number(),
+    BOT_OUTLIER_RUN: zBoolean().default(false),
+    BOT_DOPAMINE_RUN: zBoolean().default(false),
+
+    // Bot-Outlier
+    OUTLIER_MSG_TTL: z.coerce.number(),
   })
   .parse(dotenv.config({ path: [".env"] }).parsed);

@@ -1,4 +1,4 @@
-export abstract class ExchangeClient<T> {
+export abstract class ExchangeClient<T = any> {
   protected abstract client: T;
 
   abstract client$(): T;

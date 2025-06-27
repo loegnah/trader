@@ -7,6 +7,7 @@ import {
 import { candleChannel } from "@/channel/candle.channel";
 import { streamCn } from "@/channel/stream.channel";
 import { ENV } from "@/env";
+import { runExcStream } from "@/exchange/excStream";
 import { Bot } from "@/model/bot.model";
 import { Exchange } from "@/type/trade.type";
 import type { Candle } from "@/type/trade.type";
@@ -18,7 +19,6 @@ import { groupBy, mergeMap, throttleTime } from "rxjs";
 const THROTTLE_TIME = 1000;
 
 export class OutlierBot extends Bot {
-  private readonly NAME = "Candle outlier checker";
   private readonly exc: Exchange;
   private readonly configMap = OUTLIER_CONFIG_LIST.reduce(
     (acc, [topic, config]) => {
@@ -29,13 +29,14 @@ export class OutlierBot extends Bot {
   );
   private readonly outlierCache = new TTLCache<string, { changeRatio: number }>(
     {
-      ttl: 1000 * ENV.BOT_OUTLIER_MSG_TTL,
+      ttl: 1000 * ENV.OUTLIER_MSG_TTL,
     },
   );
 
   constructor(params: { exc: Exchange }) {
     super();
     this.exc = params.exc;
+    runExcStream(this.exc);
   }
 
   async init() {
@@ -69,6 +70,7 @@ export class OutlierBot extends Bot {
   }
 
   private handleCandleLive(topic: string, candle: Candle) {
+    console.log(topic, candle.close);
     const config = this.configMap[topic];
     if (!config) return;
     const { isOutlier, changeRatio } = checkOutlierCandle(
