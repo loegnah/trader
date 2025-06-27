@@ -52,3 +52,21 @@ export type PositionInfo = z.infer<typeof $PositionInfo>;
 export const $Order = z.object();
 
 export type Order = z.infer<typeof $Order>;
+
+// -------------- bot --------------
+export enum PHASE_HANDLER {
+  STARTER = "starter",
+  CANDLE_LIVE = "candle-live",
+  CANDLE_DONE = "candle-done",
+  ORDER = "order",
+  POSITION = "position",
+  END = "end",
+}
+
+export type PhaseMap<T extends string> = Record<
+  T,
+  {
+    handler: Partial<Record<PHASE_HANDLER, (...args: any[]) => Promise<void>>>;
+    alertMsg?: string;
+  }
+>;
