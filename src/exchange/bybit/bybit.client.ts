@@ -1,4 +1,7 @@
-import { convertBybitKlinesToCandles } from "@/exchange/bybit/bybit.util";
+import {
+  convertBybitKlinesToCandles,
+  filterEmptyPosition,
+} from "@/exchange/bybit/bybit.util";
 import { ExchangeClient } from "@/model/ex-client.model";
 import {
   $PositionInfo,
@@ -203,11 +206,10 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
   async closeAllPositions(params: { symbol?: string }) {
     const positions = await this.getPositionInfos({
       symbol: params.symbol,
-    });
+    }).then((res) => res.filter(filterEmptyPosition));
 
     for (const pos of positions) {
       const { symbol, size, side } = $PositionInfo.parse(pos);
-      if (size === 0) continue;
 
       await this.closePosition({
         symbol,

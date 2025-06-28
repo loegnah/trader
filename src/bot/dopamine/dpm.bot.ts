@@ -6,6 +6,7 @@ import { DopamineLib } from "@/bot/dopamine/dpm.lib";
 import { DopamineMemory } from "@/bot/dopamine/dpm.memory";
 import { type CandleChEvent, candleChannel } from "@/channel/candle.channel";
 import { streamCn } from "@/channel/stream.channel";
+import { ENV } from "@/env";
 import { getExcClient } from "@/exchange/excClient";
 import { runExcStream } from "@/exchange/excStream";
 import { Bot } from "@/model/bot.model";
@@ -50,6 +51,7 @@ export class DopamineBot extends Bot {
 
   async start() {
     await this.setupInitialData();
+    await this.setupInitialState();
   }
 
   // ------------------------ setup ------------------------
@@ -131,7 +133,6 @@ export class DopamineBot extends Bot {
       ohlc: calcOhlc(latestCandle),
       rsi,
     };
-
     logger.info(
       {
         phase: this.phase,
@@ -140,6 +141,18 @@ export class DopamineBot extends Bot {
       "[Initial data]",
     );
   };
+
+  private async setupInitialState() {
+    if (ENV.OUTLIER_RESET_STATE) {
+      logger.info("[setupInitialState] reset all positions and orders");
+      await this.client.closeAllPositions({
+        symbol: this.conf.symbol,
+      });
+      await this.client.cancelAllOrders({
+        symbol: this.conf.symbol,
+      });
+    }
+  }
 
   // ------------------------ handler ------------------------
 
