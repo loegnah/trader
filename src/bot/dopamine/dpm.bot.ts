@@ -4,7 +4,7 @@ import {
 } from "@/bot/dopamine/dpm.config";
 import { DopamineLib } from "@/bot/dopamine/dpm.lib";
 import { DopamineMemory } from "@/bot/dopamine/dpm.memory";
-import { candleChannel } from "@/channel/candle.channel";
+import { type CandleChEvent, candleChannel } from "@/channel/candle.channel";
 import { streamCn } from "@/channel/stream.channel";
 import { getExcClient } from "@/exchange/excClient";
 import { runExcStream } from "@/exchange/excStream";
@@ -12,6 +12,7 @@ import { Bot } from "@/model/bot.model";
 import type { ExchangeClient } from "@/model/ex-client.model";
 import { type EventHandlerMap, EventType, Exchange } from "@/type/trade.type";
 import { logger } from "@/util/logger";
+import { tap } from "rxjs";
 
 export class DopamineBot extends Bot {
   private readonly conf: DopamineConfig;
@@ -59,9 +60,12 @@ export class DopamineBot extends Bot {
   }
 
   private async setupHandler() {
-    candleChannel.onConfirmed$({ exchange: this.exc }).subscribe(async () => {
-      await this.executeHandlers(EventType.CANDLE_CONFIRMED, this.phase);
-    });
+    candleChannel
+      .onConfirmed$({ exchange: this.exc })
+      .pipe(tap(this.saveDataToMemory("candleCn")))
+      .subscribe(async () => {
+        await this.executeHandlers(EventType.CANDLE_CONFIRMED, this.phase);
+      });
   }
 
   private async executeHandlers(eventType: EventType, phase: Phase) {
@@ -78,6 +82,19 @@ export class DopamineBot extends Bot {
         );
         return;
       }
+    }
+  }
+
+  private saveDataToMemory(type: "candleCn" | "candleLv") {
+    switch (type) {
+      case "candleCn":
+        return ({ data }: CandleChEvent) => {
+          this.mem.round.candleCn = data;
+        };
+      case "candleLv":
+        return ({ data }: CandleChEvent) => {
+          this.mem.round.candleLv = data;
+        };
     }
   }
 
