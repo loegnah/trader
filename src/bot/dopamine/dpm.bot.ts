@@ -1,5 +1,4 @@
-import { DopamineConfig } from "@/bot/dopamine/dopamine.config";
-import { DOPAMINE_PHASE } from "@/bot/dopamine/dopamine.lib";
+import { DOPAMINE_PHASE, DopamineConfig } from "@/bot/dopamine/dopamine.config";
 import { streamCn } from "@/channel/stream.channel";
 import { getExcClient } from "@/exchange/excClient";
 import { runExcStream } from "@/exchange/excStream";

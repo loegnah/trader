@@ -1,3 +1,7 @@
+export enum DOPAMINE_PHASE {
+  IDLE = "IDLE",
+}
+
 export class DopamineConfig {
   symbol = "BTCUSDT";
   topic = "kline.5.BTCUSDT";
