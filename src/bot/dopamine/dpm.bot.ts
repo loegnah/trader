@@ -11,7 +11,10 @@ import { runExcStream } from "@/exchange/excStream";
 import { Bot } from "@/model/bot.model";
 import type { ExchangeClient } from "@/model/ex-client.model";
 import { type EventHandlerMap, EventType, Exchange } from "@/type/trade.type";
+import { calcOhlc, candleSide } from "@/util/candle.util";
 import { logger } from "@/util/logger";
+import { calcRsi } from "@/util/rsi";
+import { last } from "es-toolkit";
 import { tap } from "rxjs";
 
 export class DopamineBot extends Bot {
@@ -42,6 +45,11 @@ export class DopamineBot extends Bot {
     await this.setupAccountSetting();
     await this.reqSubscribe();
     await this.setupHandler();
+    await this.start();
+  }
+
+  async start() {
+    await this.setupInitialData();
   }
 
   // ------------------------ setup ------------------------
@@ -62,7 +70,7 @@ export class DopamineBot extends Bot {
   private async setupHandler() {
     candleChannel
       .onConfirmed$({ exchange: this.exc })
-      .pipe(tap(this.saveDataToMemory("candleCn")))
+      .pipe(tap(this.saveDataToMemory(EventType.CANDLE_CONFIRMED)))
       .subscribe(async () => {
         await this.executeHandlers(EventType.CANDLE_CONFIRMED, this.phase);
       });
@@ -85,18 +93,55 @@ export class DopamineBot extends Bot {
     }
   }
 
-  private saveDataToMemory(type: "candleCn" | "candleLv") {
+  private saveDataToMemory(type: EventType) {
     switch (type) {
-      case "candleCn":
+      case EventType.CANDLE_CONFIRMED:
         return ({ data }: CandleChEvent) => {
-          this.mem.round.candleCn = data;
+          this.mem.cn.candle = data;
         };
-      case "candleLv":
+      case EventType.CANDLE_LIVE:
         return ({ data }: CandleChEvent) => {
-          this.mem.round.candleLv = data;
+          this.mem.lv.candle = data;
         };
     }
   }
+
+  private setupInitialData = async () => {
+    const candles = await this.client
+      .getCandles({
+        symbol: this.conf.symbol,
+        interval: this.conf.interval,
+        limit: 200,
+      })
+      .then((ret) => ret.reverse());
+    if (!candles.length) {
+      logger.error("[setupInitialData] no candles");
+      throw new Error("no candles");
+    }
+    const { gains, losses, rsi } = calcRsi({
+      prices: candles.map((candle) => calcOhlc(candle)),
+    });
+    const latestCandle = last(candles)!;
+
+    this.mem.gains = gains;
+    this.mem.losses = losses;
+    this.mem.cn = {
+      candle: latestCandle,
+      side: candleSide(latestCandle),
+      ohlc: calcOhlc(latestCandle),
+      rsi,
+    };
+
+    logger.info(
+      {
+        phase: this.phase,
+        rsi: this.mem.cn.rsi,
+      },
+      "[Initial data]",
+    );
+  };
+
+  // ------------------------ handler ------------------------
 
   private async candleLiveHandler1() {
     console.log("candleLiveHandler1");

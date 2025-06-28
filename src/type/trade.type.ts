@@ -31,6 +31,15 @@ export const $Candle = z.object({
 
 export type Candle = z.infer<typeof $Candle>;
 
+export const $CandleCore = $Candle.pick({
+  open: true,
+  close: true,
+  high: true,
+  low: true,
+});
+
+export type CandleCore = z.infer<typeof $CandleCore>;
+
 export const $CandleWithConfirm = $Candle.extend({
   confirm: z.boolean(),
 });

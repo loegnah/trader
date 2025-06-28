@@ -1,3 +1,5 @@
+import type { TInterval, TSymbol } from "@/type/trade.type";
+
 export enum DopaminePhase {
   IDLE = "IDLE",
   PHASE_1 = "PHASE_1",
@@ -10,7 +12,9 @@ export enum DopaminePhase {
 }
 
 export class DopamineConfig {
-  symbol = "BTCUSDT";
-  topic = "kline.5.BTCUSDT";
+  symbol: TSymbol = "BTCUSDT";
+  interval: TInterval = "5";
+  topic: TSymbol = `kline.${this.interval}.${this.symbol}`;
+
   leverage = 20;
 }
