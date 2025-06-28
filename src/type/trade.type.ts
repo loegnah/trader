@@ -54,10 +54,10 @@ export const $Order = z.object();
 export type Order = z.infer<typeof $Order>;
 
 // -------------- bot --------------
-export enum PHASE_HANDLER {
+export enum EventType {
   STARTER = "starter",
   CANDLE_LIVE = "candle-live",
-  CANDLE_DONE = "candle-done",
+  CANDLE_CONFIRMED = "candle-confirmed",
   ORDER = "order",
   POSITION = "position",
   END = "end",
@@ -66,7 +66,14 @@ export enum PHASE_HANDLER {
 export type PhaseMap<T extends string> = Record<
   T,
   {
-    handler: Partial<Record<PHASE_HANDLER, (...args: any[]) => Promise<void>>>;
+    handler: Partial<Record<EventType, (...args: any[]) => Promise<void>>>;
     alertMsg?: string;
   }
+>;
+
+export type EventHandlerMap<T extends string> = Partial<
+  Record<
+    EventType,
+    Partial<Record<T, ((...args: any[]) => Promise<void> | void)[]>>
+  >
 >;

@@ -19,7 +19,6 @@ import { groupBy, mergeMap, throttleTime } from "rxjs";
 const THROTTLE_TIME = 1000;
 
 export class OutlierBot extends Bot {
-  private readonly exc: Exchange;
   private readonly configMap = OUTLIER_CONFIG_LIST.reduce(
     (acc, [topic, config]) => {
       acc[topic] = config;
@@ -34,8 +33,7 @@ export class OutlierBot extends Bot {
   );
 
   constructor(params: { exc: Exchange }) {
-    super();
-    this.exc = params.exc;
+    super({ exc: params.exc });
     runExcStream(this.exc);
   }
 
@@ -70,7 +68,6 @@ export class OutlierBot extends Bot {
   }
 
   private handleCandleLive(topic: string, candle: Candle) {
-    console.log(topic, candle.close);
     const config = this.configMap[topic];
     if (!config) return;
     const { isOutlier, changeRatio } = checkOutlierCandle(
