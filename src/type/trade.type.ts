@@ -31,6 +31,15 @@ export const $Candle = z.object({
 
 export type Candle = z.infer<typeof $Candle>;
 
+export const $CandleCore = $Candle.pick({
+  open: true,
+  close: true,
+  high: true,
+  low: true,
+});
+
+export type CandleCore = z.infer<typeof $CandleCore>;
+
 export const $CandleWithConfirm = $Candle.extend({
   confirm: z.boolean(),
 });
@@ -52,3 +61,28 @@ export type PositionInfo = z.infer<typeof $PositionInfo>;
 export const $Order = z.object();
 
 export type Order = z.infer<typeof $Order>;
+
+// -------------- bot --------------
+export enum EventType {
+  STARTER = "starter",
+  CANDLE_LIVE = "candle-live",
+  CANDLE_CONFIRMED = "candle-confirmed",
+  ORDER = "order",
+  POSITION = "position",
+  END = "end",
+}
+
+export type PhaseMap<T extends string> = Record<
+  T,
+  {
+    handler: Partial<Record<EventType, (...args: any[]) => Promise<void>>>;
+    alertMsg?: string;
+  }
+>;
+
+export type EventHandlerMap<T extends string> = Partial<
+  Record<
+    EventType,
+    Partial<Record<T, ((...args: any[]) => Promise<void> | void)[]>>
+  >
+>;

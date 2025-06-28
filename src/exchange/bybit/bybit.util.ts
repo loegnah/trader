@@ -1,5 +1,5 @@
 import { $Candle, $CandleWithConfirm, type Candle } from "@/type/trade.type";
-import type { OHLCVKlineV5 } from "bybit-api";
+import type { OHLCVKlineV5, PositionV5 } from "bybit-api";
 import { zipObject } from "es-toolkit";
 import { z } from "zod/v4";
 
@@ -26,4 +26,9 @@ export function convertBybitKlineEventToCandle(klineEventData: any) {
     candle: candleWithConfirm,
     confirm: candleWithConfirm.confirm,
   };
+}
+
+export function filterEmptyPosition(position: PositionV5) {
+  if (position.size === "0" || position.size === "") return false;
+  return true;
 }

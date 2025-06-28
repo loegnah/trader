@@ -40,5 +40,6 @@ export const ENV = z
 
     // Bot-Outlier
     OUTLIER_MSG_TTL: z.coerce.number(),
+    OUTLIER_RESET_STATE: zBoolean().default(false),
   })
   .parse(dotenv.config({ path: [".env"] }).parsed);

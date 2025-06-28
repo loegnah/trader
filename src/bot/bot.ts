@@ -1,4 +1,4 @@
-import { DopamineBot } from "@/bot/dopamine/dopamine.bot";
+import { DopamineBot } from "@/bot/dopamine/dpm.bot";
 import { OutlierBot } from "@/bot/outlier/outlier.bot";
 import { ENV } from "@/env";
 import type { Bot } from "@/model/bot.model";
