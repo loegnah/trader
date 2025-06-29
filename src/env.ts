@@ -34,6 +34,10 @@ export const ENV = z
     DISCORD_BOT_CMD_RESET: zBoolean().default(false),
     DISCORD_BOT_SEND_MSG: zBoolean().default(false),
 
+    // Telegram
+    TELEGRAM_BOT_TOKEN: z.string(),
+    TELEGRAM_BOT_CHAT_ID: z.string(),
+
     // Bot
     BOT_OUTLIER_RUN: zBoolean().default(false),
     BOT_DOPAMINE_RUN: zBoolean().default(false),
