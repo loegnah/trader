@@ -1,9 +1,11 @@
-import { discordChannel } from "@/channel/discord.channel";
+import { type MsgTarget, msgChannel } from "@/channel/msg.channel";
 
-export function sendDiscordMsgToUser({
+export function sendMsgToUser({
+  target,
   title,
   ...data
 }: {
+  target: MsgTarget;
   title?: string;
   [key: string]: any;
 }) {
@@ -14,7 +16,8 @@ export function sendDiscordMsgToUser({
     )
     .join("\n");
 
-  discordChannel.emit({
+  msgChannel.emit({
+    target,
     type: "sendToUser",
     data: {
       msg: `${title ? `[${title}]\n` : ""}${msg}`,

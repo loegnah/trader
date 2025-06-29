@@ -5,14 +5,15 @@ import {
   type OutlierConfig,
 } from "@/bot/outlier/outlier.stg";
 import { candleChannel } from "@/channel/candle.channel";
+import { MsgTarget } from "@/channel/msg.channel";
 import { streamCn } from "@/channel/stream.channel";
 import { ENV } from "@/env";
 import { runExcStream } from "@/exchange/excStream";
 import { Bot } from "@/model/bot.model";
 import { Exchange } from "@/type/trade.type";
 import type { Candle } from "@/type/trade.type";
-import { sendDiscordMsgToUser } from "@/util/discord.util";
 import { logger } from "@/util/logger";
+import { sendMsgToUser } from "@/util/msg.util";
 import TTLCache from "@isaacs/ttlcache";
 import { groupBy, mergeMap, throttleTime } from "rxjs";
 
@@ -105,7 +106,8 @@ export class OutlierBot extends Bot {
         { topic, changeRatio: changeRatio.toFixed(2) },
         `[outlier-bot] Outlier detected`,
       );
-      sendDiscordMsgToUser({
+      sendMsgToUser({
+        target: MsgTarget.DISCORD,
         title: "Outlier detected",
         topic,
         changed: changeRatio.toFixed(2),

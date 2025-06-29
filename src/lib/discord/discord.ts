@@ -1,4 +1,4 @@
-import { discordChannel } from "@/channel/discord.channel";
+import { MsgTarget, msgChannel } from "@/channel/msg.channel";
 import { ENV } from "@/env";
 import { logger } from "@/util/logger";
 import chalk from "chalk";
@@ -33,9 +33,11 @@ class Discord {
       this.client.on(Events.InteractionCreate, this.handleInteraction);
     }
     if (ENV.DISCORD_BOT_SEND_MSG) {
-      discordChannel.onSendToUser$().subscribe((event) => {
-        this.sendMsgToUser(event.msg);
-      });
+      msgChannel
+        .on$({ target: MsgTarget.DISCORD, type: "sendToUser" })
+        .subscribe((event) => {
+          this.sendMsgToUser(event.msg);
+        });
     }
   }
 
