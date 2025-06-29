@@ -6,19 +6,24 @@ const $EventData = {
     msg: z.string(),
   }),
 };
-
 type EventDataKey = keyof typeof $EventData;
 type EventData = {
   [key in EventDataKey]: z.infer<(typeof $EventData)[key]>;
 };
 
-type DiscordCnEvent = {
+export enum MsgTarget {
+  DISCORD = "discord",
+  TELEGRAM = "telegram",
+}
+
+type MsgChEvent = {
+  target: MsgTarget;
   type: EventDataKey;
   data: EventData[EventDataKey];
 };
 
-class DiscordChannel {
-  public readonly events$ = new Subject<DiscordCnEvent>();
+class MsgChannel {
+  public readonly events$ = new Subject<MsgChEvent>();
   public readonly sharedEvents$ = this.events$.pipe(share());
 
   constructor() {
@@ -27,16 +32,20 @@ class DiscordChannel {
 
   async init() {}
 
-  emit(event: DiscordCnEvent) {
+  emit(event: MsgChEvent) {
     this.events$.next(event);
   }
 
-  onSendToUser$() {
+  on$(params: {
+    target: MsgTarget;
+    type: EventDataKey;
+  }) {
     return this.sharedEvents$.pipe(
-      filter((event) => event.type === "sendToUser"),
+      filter((event) => event.target === params.target),
+      filter((event) => event.type === params.type),
       map((event) => $EventData[event.type].parse(event.data)),
     );
   }
 }
 
-export const discordChannel = new DiscordChannel();
+export const msgChannel = new MsgChannel();
