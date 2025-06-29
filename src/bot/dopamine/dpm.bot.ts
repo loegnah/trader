@@ -1,3 +1,4 @@
+import { makeMemoryCandleData } from "@/bot/bot.util";
 import {
   DopamineConfig,
   DopaminePhase as Phase,
@@ -12,10 +13,9 @@ import { runExcStream } from "@/exchange/excStream";
 import { Bot } from "@/model/bot.model";
 import type { ExchangeClient } from "@/model/ex-client.model";
 import { type EventHandlerMap, EventType, Exchange } from "@/type/trade.type";
-import { calcOhlc, candleSide } from "@/util/candle.util";
+import { calcOhlc } from "@/util/candle.util";
 import { logger } from "@/util/logger";
 import { calcRsi } from "@/util/rsi";
-import { last } from "es-toolkit";
 import { tap } from "rxjs";
 
 export class DopamineBot extends Bot {
@@ -42,16 +42,23 @@ export class DopamineBot extends Bot {
   }
 
   async init() {
-    runExcStream(this.exc);
-    await this.setupAccountSetting();
-    await this.reqSubscribe();
-    await this.setupHandler();
     await this.start();
+    runExcStream(this.exc);
+    await this.setupHandler();
   }
 
   async start() {
+    await this.setupAccountSetting();
     await this.setupInitialData();
-    await this.setupInitialState();
+    await this.reqSubscribe();
+
+    logger.info(
+      {
+        phase: this.phase,
+        rsi: this.mem.cn.rsi,
+      },
+      "[START]",
+    );
   }
 
   // ------------------------ setup ------------------------
@@ -60,6 +67,15 @@ export class DopamineBot extends Bot {
       symbol: this.conf.symbol,
       leverage: this.conf.leverage,
     });
+    if (ENV.OUTLIER_RESET_STATE) {
+      logger.info("[setupInitialState] reset all positions and orders");
+      await this.client.closeAllPositions({
+        symbol: this.conf.symbol,
+      });
+      await this.client.cancelAllOrders({
+        symbol: this.conf.symbol,
+      });
+    }
   }
 
   private async reqSubscribe() {
@@ -109,50 +125,32 @@ export class DopamineBot extends Bot {
   }
 
   private setupInitialData = async () => {
-    const candles = await this.client
-      .getCandles({
-        symbol: this.conf.symbol,
-        interval: this.conf.interval,
-        limit: 200,
-      })
-      .then((ret) => ret.reverse());
-    if (!candles.length) {
+    const candles = await this.client.getCandles({
+      symbol: this.conf.symbol,
+      interval: this.conf.interval,
+      limit: 200,
+      withNowCandle: true,
+    });
+    if (candles.length < 2) {
       logger.error("[setupInitialData] no candles");
       throw new Error("no candles");
     }
-    const { gains, losses, rsi } = calcRsi({
-      prices: candles.map((candle) => calcOhlc(candle)),
+    const [lvCandle, cnCandle] = [candles[0]!, candles[1]!];
+    const {
+      rsi: rsiCn,
+      gains,
+      losses,
+    } = calcRsi({
+      prices: candles.slice(0, -1).map(calcOhlc).reverse(),
     });
-    const latestCandle = last(candles)!;
 
-    this.mem.gains = gains;
-    this.mem.losses = losses;
-    this.mem.cn = {
-      candle: latestCandle,
-      side: candleSide(latestCandle),
-      ohlc: calcOhlc(latestCandle),
-      rsi,
-    };
-    logger.info(
-      {
-        phase: this.phase,
-        rsi: this.mem.cn.rsi,
-      },
-      "[Initial data]",
-    );
+    this.mem.init({
+      lv: makeMemoryCandleData({ candle: lvCandle }),
+      cn: makeMemoryCandleData({ candle: cnCandle, rsi: rsiCn }),
+      gains,
+      losses,
+    });
   };
-
-  private async setupInitialState() {
-    if (ENV.OUTLIER_RESET_STATE) {
-      logger.info("[setupInitialState] reset all positions and orders");
-      await this.client.closeAllPositions({
-        symbol: this.conf.symbol,
-      });
-      await this.client.cancelAllOrders({
-        symbol: this.conf.symbol,
-      });
-    }
-  }
 
   // ------------------------ handler ------------------------
 

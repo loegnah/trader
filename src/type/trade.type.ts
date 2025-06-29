@@ -86,3 +86,10 @@ export type EventHandlerMap<T extends string> = Partial<
     Partial<Record<T, ((...args: any[]) => Promise<void> | void)[]>>
   >
 >;
+
+// --------------- memory ---------------
+export type MemoryCandleData = {
+  candle: Candle;
+  side: TSide;
+  rsi?: number;
+};
