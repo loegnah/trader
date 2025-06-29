@@ -12,10 +12,16 @@ import { getExcClient } from "@/exchange/excClient";
 import { runExcStream } from "@/exchange/excStream";
 import { Bot } from "@/model/bot.model";
 import type { ExchangeClient } from "@/model/ex-client.model";
-import { type EventHandlerMap, EventType, Exchange } from "@/type/trade.type";
+import {
+  type EventHandlerMap,
+  EventType,
+  Exchange,
+  type PhaseMap,
+} from "@/type/trade.type";
 import { calcOhlc } from "@/util/candle.util";
 import { logger } from "@/util/logger";
 import { calcRsi, calcRsiFromGL } from "@/util/rsi";
+import { getSideFromTwoCandles, isOutWithSide } from "@/util/side.util";
 import { tap } from "rxjs";
 
 export class DopamineBot extends Bot {
@@ -27,6 +33,14 @@ export class DopamineBot extends Bot {
   private readonly handlerMap: EventHandlerMap<Phase> = {
     [EventType.CANDLE_CONFIRMED]: {
       [Phase.IDLE]: [],
+    },
+  };
+
+  private readonly phaseMap: PhaseMap<Phase> = {
+    [Phase.IDLE]: {
+      handler: {
+        [EventType.CANDLE_LIVE]: this.idle_candleCn,
+      },
     },
   };
 
@@ -77,7 +91,10 @@ export class DopamineBot extends Bot {
         tap(this.makeRsi({ candleType: "cn" })),
       )
       .subscribe(async () => {
-        await this.executeHandlers(EventType.CANDLE_CONFIRMED, this.phase);
+        // await this.executeHandlers(EventType.CANDLE_CONFIRMED, this.phase);
+        await this.phaseMap[this.phase]?.handler[EventType.CANDLE_LIVE]?.call(
+          this,
+        );
       });
   }
 
@@ -147,7 +164,16 @@ export class DopamineBot extends Bot {
     });
   }
 
-  // ------------------------ handler ------------------------
+  // ------------------------ common ------------------------
+
+  private async changePhase(phase: Phase) {
+    if (this.phase === phase) return;
+    this.phaseMap[this.phase]?.handler.end?.();
+
+    logger.info(`[phase] '${this.phase}' -> '${phase}'`);
+    this.phase = phase;
+    await this.phaseMap[phase]?.handler.starter?.();
+  }
 
   private saveDataToMemory(type: EventType) {
     switch (type) {
@@ -167,6 +193,7 @@ export class DopamineBot extends Bot {
       const candleData = this.mem[params.candleType];
       const { candle, preCandle } = candleData;
       const { gains: preGains, losses: preLosses } = this.mem.rsiData;
+
       const { rsi, gains, losses } = calcRsiFromGL({
         change: candle.close - preCandle.close,
         preGains,
@@ -176,5 +203,25 @@ export class DopamineBot extends Bot {
       candleData.preRsi = candleData.rsi;
       candleData.rsi = rsi;
     };
+  }
+
+  // ------------------------ phase handler ------------------------
+
+  private async idle_candleCn() {
+    const { rsi_trigger_first_top, rsi_trigger_first_btm } = this.conf;
+    const { rsi, candle, preCandle } = this.mem.cn;
+    if (!rsi) {
+      throw new Error("'rsi' is not valid");
+    }
+    const side = getSideFromTwoCandles(candle, preCandle);
+    const isTrigger = isOutWithSide(
+      rsi,
+      rsi_trigger_first_top,
+      rsi_trigger_first_btm,
+      side,
+    );
+    if (isTrigger) {
+      await this.changePhase(Phase.OUT_RSI);
+    }
   }
 }

@@ -72,12 +72,16 @@ export enum EventType {
   END = "end",
 }
 
-export type PhaseMap<T extends string> = Record<
-  T,
-  {
-    handler: Partial<Record<EventType, (...args: any[]) => Promise<void>>>;
-    alertMsg?: string;
-  }
+export type PhaseMap<T extends string> = Partial<
+  Record<
+    T,
+    {
+      handler: Partial<
+        Record<EventType, (...args: any[]) => Promise<void> | void>
+      >;
+      msgEnterPhase?: string;
+    }
+  >
 >;
 
 export type EventHandlerMap<T extends string> = Partial<
