@@ -25,21 +25,21 @@ export class DopamineMemory {
     };
   }
 
-  init(params: {
+  init = (params: {
     lv: MemoryCandleData;
     cn: MemoryCandleData;
     gains: number[];
     losses: number[];
-  }) {
+  }) => {
     this.lv = params.lv;
     this.cn = params.cn;
     this.rsiData = {
       gains: params.gains,
       losses: params.losses,
     };
-  }
+  };
 
-  resetRound() {
+  resetRound = () => {
     this.round = {};
-  }
+  };
 }

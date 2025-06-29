@@ -3,9 +3,9 @@ import {
   DopamineConfig,
   DopaminePhase as Phase,
 } from "@/bot/dopamine/dpm.config";
-import { DopamineLib } from "@/bot/dopamine/dpm.lib";
+import { DopamineHelper } from "@/bot/dopamine/dpm.helper";
 import { DopamineMemory } from "@/bot/dopamine/dpm.memory";
-import { type CandleChEvent, candleChannel } from "@/channel/candle.channel";
+import { candleChannel } from "@/channel/candle.channel";
 import { streamCn } from "@/channel/stream.channel";
 import { ENV } from "@/env";
 import { getExcClient } from "@/exchange/excClient";
@@ -20,13 +20,13 @@ import {
 } from "@/type/trade.type";
 import { calcOhlc } from "@/util/candle.util";
 import { logger } from "@/util/logger";
-import { calcRsi, calcRsiFromGL } from "@/util/rsi";
+import { calcRsi } from "@/util/rsi";
 import { getSideFromTwoCandles, isOutWithSide } from "@/util/side.util";
 import { tap } from "rxjs";
 
 export class DopamineBot extends Bot {
   private readonly conf: DopamineConfig;
-  private readonly lib: DopamineLib;
+  private readonly helper: DopamineHelper;
   private readonly mem: DopamineMemory;
   private readonly client: ExchangeClient;
 
@@ -36,31 +36,33 @@ export class DopamineBot extends Bot {
     },
   };
 
-  private readonly phaseMap: PhaseMap<Phase> = {
-    [Phase.IDLE]: {
-      handler: {
-        [EventType.CANDLE_LIVE]: this.idle_candleCn,
-      },
-    },
-  };
+  private readonly phaseMap: PhaseMap<Phase>;
 
   private phase: Phase = Phase.IDLE;
 
   constructor(params: { exc: Exchange }) {
     super({ exc: params.exc });
     this.conf = new DopamineConfig();
-    this.lib = new DopamineLib({ conf: this.conf });
     this.mem = new DopamineMemory({ conf: this.conf });
+    this.helper = new DopamineHelper({ conf: this.conf, mem: this.mem });
     this.client = getExcClient(this.exc);
     runExcStream(this.exc);
+
+    this.phaseMap = {
+      [Phase.IDLE]: {
+        handler: {
+          [EventType.CANDLE_LIVE]: this.idle_candleCn,
+        },
+      },
+    };
   }
 
-  async init() {
+  init = async () => {
     await this.start();
     await this.setupHandler();
-  }
+  };
 
-  async start() {
+  start = async () => {
     await this.setupAccountSetting();
     await this.setupInitialData();
     await this.reqSubscribe();
@@ -72,50 +74,30 @@ export class DopamineBot extends Bot {
       },
       "[START]",
     );
-  }
+  };
 
   // ------------------------ setup ------------------------
 
-  private async reqSubscribe() {
+  private reqSubscribe = async () => {
     streamCn.subscribe({
       exchange: this.exc,
       data: { topics: [this.conf.topic] },
     });
-  }
+  };
 
-  private async setupHandler() {
+  private setupHandler = async () => {
     candleChannel
       .onConfirmed$({ exchange: this.exc })
       .pipe(
-        tap(this.saveDataToMemory(EventType.CANDLE_CONFIRMED)),
-        tap(this.makeRsi({ candleType: "cn" })),
+        tap(this.helper.saveDataToMemory(EventType.CANDLE_CONFIRMED)),
+        tap(this.helper.makeRsi({ candleType: "cn" })),
       )
       .subscribe(async () => {
-        // await this.executeHandlers(EventType.CANDLE_CONFIRMED, this.phase);
-        await this.phaseMap[this.phase]?.handler[EventType.CANDLE_LIVE]?.call(
-          this,
-        );
+        await this.phaseMap[this.phase]?.handler[EventType.CANDLE_LIVE]?.();
       });
-  }
+  };
 
-  private async executeHandlers(eventType: EventType, phase: Phase) {
-    const handlers = this.handlerMap[eventType]?.[phase];
-    if (!handlers) return;
-
-    for await (const handler of handlers) {
-      try {
-        await handler.call(this);
-      } catch (error) {
-        logger.error(
-          `Handler execution failed for ${eventType}/${phase}:`,
-          error,
-        );
-        return;
-      }
-    }
-  }
-
-  private async setupAccountSetting() {
+  private setupAccountSetting = async () => {
     await this.client.setLeverage({
       symbol: this.conf.symbol,
       leverage: this.conf.leverage,
@@ -129,9 +111,9 @@ export class DopamineBot extends Bot {
         symbol: this.conf.symbol,
       });
     }
-  }
+  };
 
-  private async setupInitialData() {
+  private setupInitialData = async () => {
     const LIMIT = 200;
     const candles = await this.client.getCandles({
       symbol: this.conf.symbol,
@@ -162,52 +144,22 @@ export class DopamineBot extends Bot {
       gains,
       losses,
     });
-  }
+  };
 
   // ------------------------ common ------------------------
 
-  private async changePhase(phase: Phase) {
+  private changePhase = async (phase: Phase) => {
     if (this.phase === phase) return;
     this.phaseMap[this.phase]?.handler.end?.();
 
     logger.info(`[phase] '${this.phase}' -> '${phase}'`);
     this.phase = phase;
     await this.phaseMap[phase]?.handler.starter?.();
-  }
-
-  private saveDataToMemory(type: EventType) {
-    switch (type) {
-      case EventType.CANDLE_CONFIRMED:
-        return ({ data }: CandleChEvent) => {
-          this.mem.cn.candle = data;
-        };
-      case EventType.CANDLE_LIVE:
-        return ({ data }: CandleChEvent) => {
-          this.mem.lv.candle = data;
-        };
-    }
-  }
-
-  private makeRsi(params: { candleType: "cn" | "lv" }) {
-    return () => {
-      const candleData = this.mem[params.candleType];
-      const { candle, preCandle } = candleData;
-      const { gains: preGains, losses: preLosses } = this.mem.rsiData;
-
-      const { rsi, gains, losses } = calcRsiFromGL({
-        change: candle.close - preCandle.close,
-        preGains,
-        preLosses,
-      });
-      this.mem.rsiData = { gains, losses };
-      candleData.preRsi = candleData.rsi;
-      candleData.rsi = rsi;
-    };
-  }
+  };
 
   // ------------------------ phase handler ------------------------
 
-  private async idle_candleCn() {
+  private idle_candleCn = async () => {
     const { rsi_trigger_first_top, rsi_trigger_first_btm } = this.conf;
     const { rsi, candle, preCandle } = this.mem.cn;
     if (!rsi) {
@@ -223,5 +175,5 @@ export class DopamineBot extends Bot {
     if (isTrigger) {
       await this.changePhase(Phase.OUT_RSI);
     }
-  }
+  };
 }

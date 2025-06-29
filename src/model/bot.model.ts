@@ -7,5 +7,6 @@ export abstract class Bot {
     this.exc = params.exc;
   }
 
-  abstract init(): Promise<void>;
+  abstract init: () => Promise<void>;
+  abstract start: () => Promise<void>;
 }
