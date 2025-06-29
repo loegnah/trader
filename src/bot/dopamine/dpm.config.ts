@@ -13,7 +13,7 @@ export enum DopaminePhase {
 
 export class DopamineConfig {
   symbol: TSymbol = "BTCUSDT";
-  interval: TInterval = "5";
+  interval: TInterval = "1";
   topic: TSymbol = `kline.${this.interval}.${this.symbol}`;
 
   leverage = 20;

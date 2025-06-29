@@ -91,5 +91,8 @@ export type EventHandlerMap<T extends string> = Partial<
 export type MemoryCandleData = {
   candle: Candle;
   side: TSide;
+  preCandle: Candle;
+  preSide: TSide;
   rsi?: number;
+  preRsi?: number;
 };

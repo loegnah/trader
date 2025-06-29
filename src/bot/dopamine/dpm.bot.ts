@@ -15,7 +15,7 @@ import type { ExchangeClient } from "@/model/ex-client.model";
 import { type EventHandlerMap, EventType, Exchange } from "@/type/trade.type";
 import { calcOhlc } from "@/util/candle.util";
 import { logger } from "@/util/logger";
-import { calcRsi } from "@/util/rsi";
+import { calcRsi, calcRsiFromGL } from "@/util/rsi";
 import { tap } from "rxjs";
 
 export class DopamineBot extends Bot {
@@ -26,8 +26,7 @@ export class DopamineBot extends Bot {
 
   private readonly handlerMap: EventHandlerMap<Phase> = {
     [EventType.CANDLE_CONFIRMED]: {
-      [Phase.IDLE]: [this.candleLiveHandler1, this.candleLiveHandler2],
-      [Phase.PHASE_1]: [this.candleLiveHandler3],
+      [Phase.IDLE]: [],
     },
   };
 
@@ -39,11 +38,11 @@ export class DopamineBot extends Bot {
     this.lib = new DopamineLib({ conf: this.conf });
     this.mem = new DopamineMemory({ conf: this.conf });
     this.client = getExcClient(this.exc);
+    runExcStream(this.exc);
   }
 
   async init() {
     await this.start();
-    runExcStream(this.exc);
     await this.setupHandler();
   }
 
@@ -62,21 +61,6 @@ export class DopamineBot extends Bot {
   }
 
   // ------------------------ setup ------------------------
-  private async setupAccountSetting() {
-    await this.client.setLeverage({
-      symbol: this.conf.symbol,
-      leverage: this.conf.leverage,
-    });
-    if (ENV.OUTLIER_RESET_STATE) {
-      logger.info("[setupInitialState] reset all positions and orders");
-      await this.client.closeAllPositions({
-        symbol: this.conf.symbol,
-      });
-      await this.client.cancelAllOrders({
-        symbol: this.conf.symbol,
-      });
-    }
-  }
 
   private async reqSubscribe() {
     streamCn.subscribe({
@@ -88,7 +72,10 @@ export class DopamineBot extends Bot {
   private async setupHandler() {
     candleChannel
       .onConfirmed$({ exchange: this.exc })
-      .pipe(tap(this.saveDataToMemory(EventType.CANDLE_CONFIRMED)))
+      .pipe(
+        tap(this.saveDataToMemory(EventType.CANDLE_CONFIRMED)),
+        tap(this.makeRsi({ candleType: "cn" })),
+      )
       .subscribe(async () => {
         await this.executeHandlers(EventType.CANDLE_CONFIRMED, this.phase);
       });
@@ -111,27 +98,31 @@ export class DopamineBot extends Bot {
     }
   }
 
-  private saveDataToMemory(type: EventType) {
-    switch (type) {
-      case EventType.CANDLE_CONFIRMED:
-        return ({ data }: CandleChEvent) => {
-          this.mem.cn.candle = data;
-        };
-      case EventType.CANDLE_LIVE:
-        return ({ data }: CandleChEvent) => {
-          this.mem.lv.candle = data;
-        };
+  private async setupAccountSetting() {
+    await this.client.setLeverage({
+      symbol: this.conf.symbol,
+      leverage: this.conf.leverage,
+    });
+    if (ENV.OUTLIER_RESET_STATE) {
+      logger.info("[setupInitialState] reset all positions and orders");
+      await this.client.closeAllPositions({
+        symbol: this.conf.symbol,
+      });
+      await this.client.cancelAllOrders({
+        symbol: this.conf.symbol,
+      });
     }
   }
 
-  private setupInitialData = async () => {
+  private async setupInitialData() {
+    const LIMIT = 200;
     const candles = await this.client.getCandles({
       symbol: this.conf.symbol,
       interval: this.conf.interval,
-      limit: 200,
+      limit: LIMIT,
       withNowCandle: true,
     });
-    if (candles.length < 2) {
+    if (candles.length < LIMIT) {
       logger.error("[setupInitialData] no candles");
       throw new Error("no candles");
     }
@@ -145,24 +136,45 @@ export class DopamineBot extends Bot {
     });
 
     this.mem.init({
-      lv: makeMemoryCandleData({ candle: lvCandle }),
-      cn: makeMemoryCandleData({ candle: cnCandle, rsi: rsiCn }),
+      lv: makeMemoryCandleData({ candle: lvCandle, preCandle: cnCandle }),
+      cn: makeMemoryCandleData({
+        candle: cnCandle,
+        preCandle: candles[2]!,
+        rsi: rsiCn,
+      }),
       gains,
       losses,
     });
-  };
+  }
 
   // ------------------------ handler ------------------------
 
-  private async candleLiveHandler1() {
-    console.log("candleLiveHandler1");
-  }
-  private async candleLiveHandler2() {
-    console.log("candleLiveHandler2");
-    this.phase = Phase.PHASE_1;
+  private saveDataToMemory(type: EventType) {
+    switch (type) {
+      case EventType.CANDLE_CONFIRMED:
+        return ({ data }: CandleChEvent) => {
+          this.mem.cn.candle = data;
+        };
+      case EventType.CANDLE_LIVE:
+        return ({ data }: CandleChEvent) => {
+          this.mem.lv.candle = data;
+        };
+    }
   }
 
-  private async candleLiveHandler3() {
-    console.log("candleLiveHandler3");
+  private makeRsi(params: { candleType: "cn" | "lv" }) {
+    return () => {
+      const candleData = this.mem[params.candleType];
+      const { candle, preCandle } = candleData;
+      const { gains: preGains, losses: preLosses } = this.mem.rsiData;
+      const { rsi, gains, losses } = calcRsiFromGL({
+        change: candle.close - preCandle.close,
+        preGains,
+        preLosses,
+      });
+      this.mem.rsiData = { gains, losses };
+      candleData.preRsi = candleData.rsi;
+      candleData.rsi = rsi;
+    };
   }
 }
