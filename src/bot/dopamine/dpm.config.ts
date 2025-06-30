@@ -1,9 +1,9 @@
 import type { TInterval, TSymbol } from "@/type/trade.type";
 
 export enum DopaminePhase {
-  IDLE = "IDLE",
-  OUT_RSI = "outRsi",
-  PHASE_2 = "PHASE_2",
+  IDLE = "idle",
+  OUT_RSI = "out-rsi",
+  ORDER = "order",
   PHASE_3 = "PHASE_3",
   PHASE_4 = "PHASE_4",
   PHASE_5 = "PHASE_5",
@@ -18,10 +18,9 @@ export class DopamineConfig {
 
   leverage = 20;
 
-  rsi_trigger_first_top = 80;
-  rsi_trigger_first_btm = 20;
-  rsi_trigger_second_top = 85;
-  rsi_trigger_second_btm = 15;
+  rsi_trigger_top = [80, 85, 90, 95];
+  rsi_trigger_btm = [20, 15, 10, 5];
+
   rsi_threshold_top = 90;
   rsi_threshold_btm = 10;
 

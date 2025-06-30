@@ -12,16 +12,10 @@ import { getExcClient } from "@/exchange/excClient";
 import { runExcStream } from "@/exchange/excStream";
 import { Bot } from "@/model/bot.model";
 import type { ExchangeClient } from "@/model/ex-client.model";
-import {
-  type EventHandlerMap,
-  EventType,
-  Exchange,
-  type PhaseMap,
-} from "@/type/trade.type";
+import { EventType, Exchange, type PhaseMap } from "@/type/trade.type";
 import { calcOhlc } from "@/util/candle.util";
 import { logger } from "@/util/logger";
 import { calcRsi } from "@/util/rsi";
-import { getSideFromTwoCandles, isOutWithSide } from "@/util/side.util";
 import { tap } from "rxjs";
 
 export class DopamineBot extends Bot {
@@ -29,12 +23,6 @@ export class DopamineBot extends Bot {
   private readonly helper: DopamineHelper;
   private readonly mem: DopamineMemory;
   private readonly client: ExchangeClient;
-
-  private readonly handlerMap: EventHandlerMap<Phase> = {
-    [EventType.CANDLE_CONFIRMED]: {
-      [Phase.IDLE]: [],
-    },
-  };
 
   private readonly phaseMap: PhaseMap<Phase>;
 
@@ -52,6 +40,16 @@ export class DopamineBot extends Bot {
       [Phase.IDLE]: {
         handler: {
           [EventType.CANDLE_LIVE]: this.idle_candleCn,
+        },
+      },
+      [Phase.OUT_RSI]: {
+        handler: {
+          [EventType.CANDLE_LIVE]: this.outRsi_candleCn,
+        },
+      },
+      [Phase.ORDER]: {
+        handler: {
+          [EventType.STARTER]: this.order_starter,
         },
       },
     };
@@ -160,20 +158,47 @@ export class DopamineBot extends Bot {
   // ------------------------ phase handler ------------------------
 
   private idle_candleCn = async () => {
-    const { rsi_trigger_first_top, rsi_trigger_first_btm } = this.conf;
-    const { rsi, candle, preCandle } = this.mem.cn;
+    const { rsi, candle } = this.mem.cn;
     if (!rsi) {
-      throw new Error("'rsi' is not valid");
+      throw new Error("[idle_candleCn] invalid data");
     }
-    const side = getSideFromTwoCandles(candle, preCandle);
-    const isTrigger = isOutWithSide(
+    const { triggerLevel, side } = this.helper.checkTriggerLevel({
+      candle,
       rsi,
-      rsi_trigger_first_top,
-      rsi_trigger_first_btm,
-      side,
-    );
-    if (isTrigger) {
+    });
+    if (triggerLevel) {
+      this.mem.round.triggerLevel = triggerLevel;
+      this.mem.round.positionSide = side;
+      this.helper.checkPoint({ candle });
       await this.changePhase(Phase.OUT_RSI);
     }
+  };
+
+  private outRsi_candleCn = async () => {
+    const { rsi, candle } = this.mem.cn;
+    const { triggerLevel: preTriggerLevel } = this.mem.round;
+    if (!preTriggerLevel || !rsi) {
+      throw new Error("[outRsi_candleCn] invalid data");
+    }
+    this.helper.checkPoint({ candle });
+    const { triggerLevel } = this.helper.checkTriggerLevel({
+      candle,
+      rsi,
+    });
+    if (preTriggerLevel! < triggerLevel) {
+      this.mem.round.triggerLevel = triggerLevel;
+      logger.info(
+        { triggerLevel, rsi },
+        "[outRsi_candleCn] New trigger level found",
+      );
+      return;
+    }
+    if (preTriggerLevel! > triggerLevel) {
+      await this.changePhase(Phase.ORDER);
+    }
+  };
+
+  private order_starter = async () => {
+    // TODO: Create order
   };
 }

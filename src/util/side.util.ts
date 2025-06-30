@@ -5,6 +5,10 @@ export function invertSide(side: TSide): TSide {
   return side === "Buy" ? "Sell" : "Buy";
 }
 
+export function isOut(value: number, top: number, bottom: number) {
+  return value > top || value < bottom;
+}
+
 export function isOutWithSide(
   value: number,
   top: number,
