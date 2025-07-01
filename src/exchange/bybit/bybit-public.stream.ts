@@ -40,10 +40,14 @@ export class BybitStreamPublic extends ExchangeStreamPublic {
   };
 
   private setupChannelListener = () => {
-    streamCn.onSubscribe$({ exchange: EX }).subscribe(({ topics }) => {
-      this.stream.subscribeV5(topics, "linear");
-      logger.info(`[bybit-stream-public] subscribed to (${topics.join(", ")})`);
-    });
+    streamCn
+      .onSubscribe$({ exchange: Exchange.BYBIT })
+      .subscribe(({ topics }) => {
+        this.stream.subscribeV5(topics, "linear");
+        logger.info(
+          `[bybit-stream-public] subscribed to (${topics.join(", ")})`,
+        );
+      });
   };
 
   private handleKlineEvent = (event: any) => {
@@ -53,7 +57,7 @@ export class BybitStreamPublic extends ExchangeStreamPublic {
       return;
     }
     candleChannel.emit({
-      exchange: EX,
+      exchange: Exchange.BYBIT,
       data: {
         topic: event.topic,
         data: ret.candle,

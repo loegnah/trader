@@ -1,6 +1,14 @@
 import type { Candle, TSide } from "@/type/trade.type";
 import { calcOhlc } from "@/util/candle.util";
 
+export function isLongSide(side: TSide) {
+  return side === "Buy";
+}
+
+export function isShortSide(side: TSide) {
+  return side === "Sell";
+}
+
 export function invertSide(side: TSide): TSide {
   return side === "Buy" ? "Sell" : "Buy";
 }

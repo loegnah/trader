@@ -6,6 +6,8 @@ import {
 import { DopamineHelper } from "@/bot/dopamine/dpm.helper";
 import { DopamineMemory } from "@/bot/dopamine/dpm.memory";
 import { candleChannel } from "@/channel/candle.channel";
+import { orderChannel } from "@/channel/order.channel";
+import { positionChannel } from "@/channel/position.channel";
 import { streamCn } from "@/channel/stream.channel";
 import { ENV } from "@/env";
 import { getExcClient } from "@/exchange/excClient";
@@ -16,7 +18,7 @@ import { EventType, Exchange, type PhaseMap } from "@/type/trade.type";
 import { calcOhlc } from "@/util/candle.util";
 import { logger } from "@/util/logger";
 import { calcRsi } from "@/util/rsi";
-import { tap } from "rxjs";
+import { filter, map, tap } from "rxjs";
 
 export class DopamineBot extends Bot {
   private readonly conf: DopamineConfig;
@@ -26,15 +28,20 @@ export class DopamineBot extends Bot {
 
   private readonly phaseMap: PhaseMap<Phase>;
 
-  private phase: Phase = Phase.IDLE;
+  private phase: Phase = Phase.ENTER;
 
   constructor(params: { exc: Exchange }) {
     super({ exc: params.exc });
-    this.conf = new DopamineConfig();
-    this.mem = new DopamineMemory({ conf: this.conf });
-    this.helper = new DopamineHelper({ conf: this.conf, mem: this.mem });
     this.client = getExcClient(this.exc);
     runExcStream(this.exc);
+
+    this.conf = new DopamineConfig();
+    this.mem = new DopamineMemory({ conf: this.conf });
+    this.helper = new DopamineHelper({
+      conf: this.conf,
+      mem: this.mem,
+      client: this.client,
+    });
 
     this.phaseMap = {
       [Phase.IDLE]: {
@@ -47,9 +54,11 @@ export class DopamineBot extends Bot {
           [EventType.CANDLE_LIVE]: this.outRsi_candleCn,
         },
       },
-      [Phase.ORDER]: {
+      [Phase.ENTER]: {
         handler: {
           [EventType.STARTER]: this.order_starter,
+          [EventType.POSITION]: this.enter_position,
+          [EventType.ORDER]: this.enter_order,
         },
       },
     };
@@ -87,11 +96,36 @@ export class DopamineBot extends Bot {
     candleChannel
       .onConfirmed$({ exchange: this.exc })
       .pipe(
-        tap(this.helper.saveDataToMemory(EventType.CANDLE_CONFIRMED)),
+        tap(this.helper.saveDataToMemory(EventType.CANDLE_CONFIRMED) as any),
         tap(this.helper.makeRsi({ candleType: "cn" })),
       )
       .subscribe(async () => {
         await this.phaseMap[this.phase]?.handler[EventType.CANDLE_LIVE]?.();
+      });
+
+    orderChannel
+      .on$({ exchange: this.exc })
+      .pipe(
+        map(({ orders }) => ({
+          orders: orders.filter(({ symbol }) => symbol === this.conf.symbol),
+        })),
+        tap(this.helper.saveDataToMemory(EventType.ORDER) as any),
+      )
+      .subscribe(async () => {
+        await this.phaseMap[this.phase]?.handler[EventType.ORDER]?.();
+      });
+
+    positionChannel
+      .on$({ exchange: this.exc })
+      .pipe(
+        map(({ positions }) => ({
+          position: positions.find(({ symbol }) => symbol === this.conf.symbol),
+        })),
+        filter(({ position }) => !!position),
+        tap(this.helper.saveDataToMemory(EventType.POSITION) as any),
+      )
+      .subscribe(async () => {
+        await this.phaseMap[this.phase]?.handler[EventType.POSITION]?.();
       });
   };
 
@@ -194,11 +228,34 @@ export class DopamineBot extends Bot {
       return;
     }
     if (preTriggerLevel! > triggerLevel) {
-      await this.changePhase(Phase.ORDER);
+      await this.changePhase(Phase.ENTER);
     }
   };
 
   private order_starter = async () => {
-    // TODO: Create order
+    const { positionSide } = this.mem.round;
+    if (!positionSide) {
+      throw new Error("[order_starter] invalid data");
+    }
+    await this.helper.reqEntryOrder({
+      price: this.mem.cn.candle.close,
+      side: positionSide,
+    });
+  };
+
+  private enter_position = async () => {
+    const { position } = this.mem;
+    if (!position) {
+      throw new Error("[enter_position] invalid data");
+    }
+    logger.trace({ position }, "[enter_position] position");
+  };
+
+  private enter_order = async () => {
+    const { orders } = this.mem;
+    if (!orders) {
+      throw new Error("[enter_order] invalid data");
+    }
+    logger.trace({ orders }, "[enter_order] orders");
   };
 }

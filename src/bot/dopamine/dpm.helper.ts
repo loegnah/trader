@@ -1,17 +1,33 @@
 import { DopamineConfig } from "@/bot/dopamine/dpm.config";
 import type { DopamineMemory } from "@/bot/dopamine/dpm.memory";
 import type { CandleChEvent } from "@/channel/candle.channel";
-import { type Candle, EventType, type TSide } from "@/type/trade.type";
+import type { OrderChEvent } from "@/channel/order.channel";
+import type { PositionChEvent } from "@/channel/position.channel";
+import type { ExchangeClient } from "@/model/ex-client.model";
+import {
+  type Candle,
+  EventType,
+  type Position,
+  type TSide,
+} from "@/type/trade.type";
+import { roundDownToUnit } from "@/util/number.util";
 import { calcRsiFromGL } from "@/util/rsi";
 import { isOut } from "@/util/side.util";
+import { calcPrice } from "@/util/trade.util";
 
 export class DopamineHelper {
   private readonly conf: DopamineConfig;
   private readonly mem: DopamineMemory;
+  private readonly client: ExchangeClient;
 
-  constructor(params: { conf: DopamineConfig; mem: DopamineMemory }) {
+  constructor(params: {
+    conf: DopamineConfig;
+    mem: DopamineMemory;
+    client: ExchangeClient;
+  }) {
     this.conf = params.conf;
     this.mem = params.mem;
+    this.client = params.client;
   }
 
   saveDataToMemory = (type: EventType) => {
@@ -20,9 +36,13 @@ export class DopamineHelper {
         return ({ data }: CandleChEvent) => {
           this.mem.cn.candle = data;
         };
-      case EventType.CANDLE_LIVE:
-        return ({ data }: CandleChEvent) => {
-          this.mem.lv.candle = data;
+      case EventType.POSITION:
+        return ({ position }: { position: Position }) => {
+          this.mem.position = position;
+        };
+      case EventType.ORDER:
+        return ({ orders }: OrderChEvent) => {
+          this.mem.orders = orders;
         };
     }
   };
@@ -64,5 +84,38 @@ export class DopamineHelper {
     const { pointTop, pointBtm } = this.mem.round;
     this.mem.round.pointTop = Math.max(pointTop, params.candle.high);
     this.mem.round.pointBtm = Math.min(pointBtm, params.candle.low);
+  };
+
+  getOrderRequirements = async () => {
+    const [totalBalance, qtyStep] = await Promise.all([
+      this.client.getAvailableBalance({
+        coinName: "USDT",
+      }),
+      this.client.getQtyStep({
+        symbol: this.conf.symbol,
+      }),
+    ]);
+    return {
+      totalBalance,
+      qtyStep,
+    };
+  };
+
+  reqEntryOrder = async ({ price, side }: { price: number; side: TSide }) => {
+    const { totalBalance, qtyStep } = await this.getOrderRequirements();
+    const qty = roundDownToUnit(
+      (totalBalance *
+        this.conf.balanceRatio *
+        this.conf.leverage *
+        this.conf.portionEntry1st) /
+        price,
+      qtyStep,
+    );
+    await this.client.createOrder({
+      symbol: this.conf.symbol,
+      orderType: "Market",
+      side,
+      qty,
+    });
   };
 }

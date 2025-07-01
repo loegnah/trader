@@ -3,7 +3,7 @@ import { $Position } from "@/type/trade.type";
 import { z } from "zod/v4";
 
 export const $PositionChEvent = z.object({
-  data: $Position,
+  positions: z.array($Position),
 });
 
 export type PositionChEvent = z.infer<typeof $PositionChEvent>;

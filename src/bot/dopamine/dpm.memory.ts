@@ -1,5 +1,10 @@
 import type { DopamineConfig } from "@/bot/dopamine/dpm.config";
-import type { MemoryCandleData, TSide } from "@/type/trade.type";
+import type {
+  MemoryCandleData,
+  Order,
+  Position,
+  TSide,
+} from "@/type/trade.type";
 
 type RoundData = {
   triggerLevel: number;
@@ -19,6 +24,9 @@ export class DopamineMemory {
 
   cn!: MemoryCandleData;
   lv!: MemoryCandleData;
+  position?: Position;
+  orders?: Order[];
+
   rsiData: {
     gains: number[];
     losses: number[];
