@@ -18,15 +18,15 @@ export class DopamineConfig {
 
   // setting
   leverage = 20;
-  balanceRatio = 0.9;
+  balanceRatio = 0.9; // 90%
 
   // position
   portionEntry1st = 0.5;
   portionEntry2nd = 0.5;
 
   // tp, sl
-  tpRatio = 1.0;
-  slRatio = -0.9;
+  tpRatio = 0.01; // 1%
+  slRatio = -0.009; // -0.9%
 
   // rsi
   rsi_trigger_top = [80, 85, 90, 95];

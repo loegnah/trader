@@ -2,7 +2,6 @@ import { DopamineConfig } from "@/bot/dopamine/dpm.config";
 import type { DopamineMemory } from "@/bot/dopamine/dpm.memory";
 import type { CandleChEvent } from "@/channel/candle.channel";
 import type { OrderChEvent } from "@/channel/order.channel";
-import type { PositionChEvent } from "@/channel/position.channel";
 import type { ExchangeClient } from "@/model/ex-client.model";
 import {
   type Candle,
@@ -13,7 +12,6 @@ import {
 import { roundDownToUnit } from "@/util/number.util";
 import { calcRsiFromGL } from "@/util/rsi";
 import { isOut } from "@/util/side.util";
-import { calcPrice } from "@/util/trade.util";
 
 export class DopamineHelper {
   private readonly conf: DopamineConfig;
@@ -101,7 +99,7 @@ export class DopamineHelper {
     };
   };
 
-  reqEntryOrder = async ({ price, side }: { price: number; side: TSide }) => {
+  orderFirstEntry = async ({ price, side }: { price: number; side: TSide }) => {
     const { totalBalance, qtyStep } = await this.getOrderRequirements();
     const qty = roundDownToUnit(
       (totalBalance *
@@ -116,6 +114,15 @@ export class DopamineHelper {
       orderType: "Market",
       side,
       qty,
+    });
+  };
+
+  setEntrySl = async (params: { entryPrice: number }) => {
+    const { slRatio } = this.conf;
+    const slPrice = params.entryPrice * (1 + slRatio);
+    await this.client.setTpsl({
+      symbol: this.conf.symbol,
+      stopLoss: slPrice,
     });
   };
 }

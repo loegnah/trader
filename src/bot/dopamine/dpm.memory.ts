@@ -11,6 +11,7 @@ type RoundData = {
   pointTop: number;
   pointBtm: number;
   positionSide?: TSide;
+  position?: Position;
 };
 
 const defaultRoundData: RoundData = {

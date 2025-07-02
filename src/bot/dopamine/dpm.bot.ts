@@ -237,7 +237,7 @@ export class DopamineBot extends Bot {
     if (!positionSide) {
       throw new Error("[order_starter] invalid data");
     }
-    await this.helper.reqEntryOrder({
+    await this.helper.orderFirstEntry({
       price: this.mem.cn.candle.close,
       side: positionSide,
     });
@@ -249,6 +249,13 @@ export class DopamineBot extends Bot {
       throw new Error("[enter_position] invalid data");
     }
     logger.trace({ position }, "[enter_position] position");
+    if (!this.mem.round.position) {
+      // is first position event
+      this.mem.round.position = position;
+      await this.helper.setEntrySl({
+        entryPrice: position.entryPrice,
+      });
+    }
   };
 
   private enter_order = async () => {

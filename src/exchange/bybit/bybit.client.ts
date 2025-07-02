@@ -238,7 +238,7 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
       positionIdx: 0,
     });
     if (ret.retMsg !== "OK") {
-      console.error(ret.retMsg);
+      logger.error(ret.retMsg);
       throw new Error("[setTpsl] Failed to set tpsl");
     }
     return ret;
