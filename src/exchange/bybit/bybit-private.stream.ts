@@ -1,7 +1,7 @@
 import { orderChannel } from "@/channel/order.channel";
 import { positionChannel } from "@/channel/position.channel";
 import { ExchangeStreamPrivate } from "@/model/ex-stream.model";
-import { $Order, $Position, Exchange } from "@/type/trade.type";
+import { $Order, $PositionData, Exchange } from "@/type/trade.type";
 import { logger } from "@/util/logger";
 import { WebsocketClient } from "bybit-api";
 import { z } from "zod/v4";
@@ -68,7 +68,7 @@ export class BybitStreamPrivate extends ExchangeStreamPrivate {
   };
 
   private handlePositionEvent = (event: any) => {
-    const { error, data } = z.array($Position).safeParse(event.data);
+    const { error, data } = z.array($PositionData).safeParse(event.data);
     if (error) {
       logger.warn({ error }, "[bybit-stream-private] position event error");
       return;
@@ -76,7 +76,7 @@ export class BybitStreamPrivate extends ExchangeStreamPrivate {
     positionChannel.emit({
       exchange: Exchange.BYBIT,
       data: {
-        positions: data,
+        positionDatas: data,
       },
     });
   };

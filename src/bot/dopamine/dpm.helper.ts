@@ -4,14 +4,16 @@ import type { CandleChEvent } from "@/channel/candle.channel";
 import type { OrderChEvent } from "@/channel/order.channel";
 import type { ExchangeClient } from "@/model/ex-client.model";
 import {
+  $Position,
   type Candle,
   EventType,
-  type Position,
+  type PositionData,
   type TSide,
 } from "@/type/trade.type";
 import { roundDownToUnit } from "@/util/number.util";
 import { calcRsiFromGL } from "@/util/rsi";
 import { isOut } from "@/util/side.util";
+import { calcPrice } from "@/util/trade.util";
 
 export class DopamineHelper {
   private readonly conf: DopamineConfig;
@@ -35,8 +37,8 @@ export class DopamineHelper {
           this.mem.cn.candle = data;
         };
       case EventType.POSITION:
-        return ({ position }: { position: Position }) => {
-          this.mem.position = position;
+        return (params: { positionData: PositionData }) => {
+          this.mem.position = $Position.parse(params.positionData);
         };
       case EventType.ORDER:
         return ({ orders }: OrderChEvent) => {
@@ -117,9 +119,9 @@ export class DopamineHelper {
     });
   };
 
-  setEntrySl = async (params: { entryPrice: number }) => {
+  setEntrySl = async (params: { entryPrice: number; positionSide: TSide }) => {
     const { slRatio } = this.conf;
-    const slPrice = params.entryPrice * (1 + slRatio);
+    const slPrice = calcPrice(params.entryPrice, slRatio, params.positionSide);
     await this.client.setTpsl({
       symbol: this.conf.symbol,
       stopLoss: slPrice,

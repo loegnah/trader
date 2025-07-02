@@ -49,20 +49,28 @@ export type CandleWithConfirm = z.infer<typeof $CandleWithConfirm>;
 // -------------- position --------------
 export const $Position = z.object({
   symbol: z.string(),
-  side: z.enum(["Buy", "Sell", ""]),
+  side: $TSide,
   positionValue: z.coerce.number(), // 포지션 가치 (ex. 1000 USDT)
-  size: z.string(), // 포지션 개수 (ex. 0.5 BTC)
+  size: z.coerce.number(), // 포지션 개수 (ex. 0.5 BTC)
   entryPrice: z.coerce.number(), // 평단가
   leverage: z.coerce.number(),
 });
 export type Position = z.infer<typeof $Position>;
 
-export const $PositionInfo = z.object({
-  symbol: z.string(),
-  size: z.coerce.number(),
-  side: $TSide,
+export const $PositionData = $Position.extend({
+  side: z.enum(["Buy", "Sell", ""]),
 });
-export type PositionInfo = z.infer<typeof $PositionInfo>;
+export type PositionData = z.infer<typeof $PositionData>;
+
+export const $PositionMini = $PositionData
+  .pick({
+    symbol: true,
+    size: true,
+  })
+  .extend({
+    side: $TSide,
+  });
+export type PositionMini = z.infer<typeof $PositionMini>;
 
 // -------------- order --------------
 export const ORDER_STATUS = [

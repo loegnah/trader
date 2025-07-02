@@ -4,7 +4,7 @@ import {
 } from "@/exchange/bybit/bybit.util";
 import { ExchangeClient } from "@/model/ex-client.model";
 import {
-  $PositionInfo,
+  $PositionMini,
   $TSide,
   type Candle,
   type TInterval,
@@ -190,7 +190,7 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
     }).then((res) => res.filter(filterEmptyPosition));
 
     for (const pos of positions) {
-      const { symbol, size, side } = $PositionInfo.parse(pos);
+      const { symbol, size, side } = $PositionMini.parse(pos);
 
       await this.closePosition({
         symbol,

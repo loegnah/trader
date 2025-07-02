@@ -6,8 +6,6 @@ import { Exchange } from "@/type/trade.type";
 import { logger } from "@/util/logger";
 import { WebsocketClient } from "bybit-api";
 
-const EX = Exchange.BYBIT;
-
 export class BybitStreamPublic extends ExchangeStreamPublic {
   private stream: WebsocketClient;
 

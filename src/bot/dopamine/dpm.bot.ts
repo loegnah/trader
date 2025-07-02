@@ -18,6 +18,7 @@ import { EventType, Exchange, type PhaseMap } from "@/type/trade.type";
 import { calcOhlc } from "@/util/candle.util";
 import { logger } from "@/util/logger";
 import { calcRsi } from "@/util/rsi";
+import { classifyOrderData } from "@/util/trade.util";
 import { filter, map, tap } from "rxjs";
 
 export class DopamineBot extends Bot {
@@ -118,10 +119,12 @@ export class DopamineBot extends Bot {
     positionChannel
       .on$({ exchange: this.exc })
       .pipe(
-        map(({ positions }) => ({
-          position: positions.find(({ symbol }) => symbol === this.conf.symbol),
+        map(({ positionDatas }) => ({
+          positionData: positionDatas.find(
+            ({ symbol }) => symbol === this.conf.symbol,
+          ),
         })),
-        filter(({ position }) => !!position),
+        filter(({ positionData }) => !!positionData),
         tap(this.helper.saveDataToMemory(EventType.POSITION) as any),
       )
       .subscribe(async () => {
@@ -254,6 +257,7 @@ export class DopamineBot extends Bot {
       this.mem.round.position = position;
       await this.helper.setEntrySl({
         entryPrice: position.entryPrice,
+        positionSide: position.side,
       });
     }
   };
@@ -263,6 +267,11 @@ export class DopamineBot extends Bot {
     if (!orders) {
       throw new Error("[enter_order] invalid data");
     }
-    logger.trace({ orders }, "[enter_order] orders");
+    const { slUntriggeredOrder: slOrder } = classifyOrderData(orders);
+    if (slOrder) {
+      logger.info({ slOrder }, "[enter_order] orders");
+      this.mem.round.slOrder = slOrder;
+      // TODO: To to next phase
+    }
   };
 }

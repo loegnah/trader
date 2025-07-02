@@ -12,6 +12,7 @@ type RoundData = {
   pointBtm: number;
   positionSide?: TSide;
   position?: Position;
+  slOrder?: Order;
 };
 
 const defaultRoundData: RoundData = {
