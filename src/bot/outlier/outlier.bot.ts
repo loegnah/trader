@@ -106,15 +106,16 @@ export class OutlierBot extends Bot {
 
     if (shouldSendMessage) {
       this.outlierCache.set(topic, { changeRatio: changeRatio });
+      const changedPercent = (changeRatio * 100).toFixed(2);
       logger.info(
-        { topic, changeRatio: changeRatio.toFixed(2) },
+        { topic, changeRatio: changedPercent },
         `[outlier-bot] Outlier detected`,
       );
       sendMsgToUser({
         target: MsgTarget.DISCORD,
         title: "Outlier detected",
         topic,
-        changed: changeRatio.toFixed(2),
+        changed: changedPercent,
       });
     }
   };
