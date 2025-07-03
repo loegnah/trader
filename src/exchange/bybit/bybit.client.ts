@@ -75,6 +75,7 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
     symbol: TSymbol;
     interval: TInterval;
     limit: TLimit;
+    startTimeStamp?: TTimeStamp;
     endTimeStamp?: TTimeStamp;
     withNowCandle?: boolean;
   }): Promise<Candle[]> => {
@@ -83,6 +84,7 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
         category: CATEGORY,
         symbol: args.symbol,
         interval: args.interval,
+        start: args.startTimeStamp,
         end: args.endTimeStamp ?? dayjs().valueOf(),
         limit: args.limit + 1, // 최신은 미완성이라서 밑에서 삭제하기 위함
       })

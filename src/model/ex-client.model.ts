@@ -23,6 +23,7 @@ export abstract class ExchangeClient<T = any> {
     symbol: TSymbol;
     interval: TInterval;
     limit: TLimit;
+    startTimeStamp?: TTimeStamp;
     endTimeStamp?: TTimeStamp;
     withNowCandle?: boolean;
   }) => Promise<Candle[]>;

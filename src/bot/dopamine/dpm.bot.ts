@@ -19,6 +19,7 @@ import { calcOhlc } from "@/util/candle.util";
 import { logger } from "@/util/logger";
 import { calcRsi } from "@/util/rsi";
 import { classifyOrderData } from "@/util/trade.util";
+import { last } from "es-toolkit";
 import { filter, map, tap } from "rxjs";
 
 export class DopamineBot extends Bot {
@@ -74,6 +75,24 @@ export class DopamineBot extends Bot {
     await this.setupAccountSetting();
     await this.setupInitialData();
     await this.reqSubscribe();
+
+    // const candles = await this.client.getCandles({
+    //   symbol: this.conf.symbol,
+    //   interval: "D",
+    //   limit: 1000,
+    // });
+    // console.log(candles.length);
+    // console.log(last(candles)?.start!);
+    // console.log(new Date("2022-07-01").getTime());
+    const candles2 = await this.client.getCandles({
+      symbol: this.conf.symbol,
+      interval: "5",
+      limit: 1000,
+      endTimeStamp: 1665187200000,
+    });
+    console.log(candles2.length);
+    console.log(last(candles2));
+    console.log(new Date(last(candles2)?.start!).toISOString());
 
     logger.info(
       {
