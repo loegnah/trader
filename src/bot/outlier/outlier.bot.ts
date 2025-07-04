@@ -5,7 +5,7 @@ import { MsgTarget } from "@/channel/msg.channel";
 import { streamCn } from "@/channel/stream.channel";
 import { ENV } from "@/env";
 import { getExcClient } from "@/exchange/excClient";
-import { runExcStream } from "@/exchange/excStream";
+import { runExcPublicStream } from "@/exchange/excStream";
 import { Bot } from "@/model/bot.model";
 import type { ExchangeClient } from "@/model/ex-client.model";
 import { Exchange } from "@/type/trade.type";
@@ -27,7 +27,13 @@ export class OutlierBot extends Bot {
   constructor(params: { exc: Exchange }) {
     super({ exc: params.exc });
     this.client = getExcClient(this.exc);
-    runExcStream(this.exc);
+    runExcPublicStream({
+      exc: this.exc,
+      streamParams: {
+        isTestnet: ENV.BYBIT_IS_TESTNET,
+        isDemoTrading: ENV.BYBIT_IS_DEMO_TRADING,
+      },
+    });
 
     this.conf = new OutlierConfig();
     this.helper = new OutlierHelper({

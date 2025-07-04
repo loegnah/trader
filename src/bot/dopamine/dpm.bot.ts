@@ -34,7 +34,15 @@ export class DopamineBot extends Bot {
   constructor(params: { exc: Exchange }) {
     super({ exc: params.exc });
     this.client = getExcClient(this.exc);
-    runExcStream(this.exc);
+    runExcStream({
+      exc: this.exc,
+      streamParams: {
+        apiKey: ENV.BYBIT_API_KEY,
+        apiSecret: ENV.BYBIT_API_SECRET,
+        isTestnet: ENV.BYBIT_IS_TESTNET,
+        isDemoTrading: ENV.BYBIT_IS_DEMO_TRADING,
+      },
+    });
 
     this.conf = new DopamineConfig();
     this.mem = new DopamineMemory({ conf: this.conf });
