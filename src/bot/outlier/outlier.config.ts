@@ -24,6 +24,8 @@ const THRESHOLD_DEFAULT = 0.025;
 const STEP_DEFAULT = 0.004;
 
 export class OutlierConfig {
+  candleEventThrottle = 1000;
+
   targetTopics: string[] = TARGET_RAW_DATA.map(([topic]) => topic);
   targetStgMap = TARGET_RAW_DATA.reduce(
     (acc, [topic, threshold, step]) => {

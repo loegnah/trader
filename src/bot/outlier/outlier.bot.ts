@@ -1,11 +1,13 @@
 import { OutlierConfig } from "@/bot/outlier/outlier.config";
-import { checkOutlierCandle } from "@/bot/outlier/outlier.lib";
+import { OutlierHelper } from "@/bot/outlier/outlier.helper";
 import { candleChannel } from "@/channel/candle.channel";
 import { MsgTarget } from "@/channel/msg.channel";
 import { streamCn } from "@/channel/stream.channel";
 import { ENV } from "@/env";
+import { getExcClient } from "@/exchange/excClient";
 import { runExcStream } from "@/exchange/excStream";
 import { Bot } from "@/model/bot.model";
+import type { ExchangeClient } from "@/model/ex-client.model";
 import { Exchange } from "@/type/trade.type";
 import type { Candle } from "@/type/trade.type";
 import { logger } from "@/util/logger";
@@ -13,10 +15,10 @@ import { sendMsgToUser } from "@/util/msg.util";
 import TTLCache from "@isaacs/ttlcache";
 import { groupBy, mergeMap, throttleTime } from "rxjs";
 
-const CANDLE_EVENT_THROTTLE = 1000;
-
 export class OutlierBot extends Bot {
   private readonly conf: OutlierConfig;
+  private readonly helper: OutlierHelper;
+  private readonly client: ExchangeClient;
 
   private readonly msgCache = new TTLCache<string, { changeRatio: number }>({
     ttl: 1000 * ENV.OUTLIER_MSG_TTL,
@@ -24,8 +26,14 @@ export class OutlierBot extends Bot {
 
   constructor(params: { exc: Exchange }) {
     super({ exc: params.exc });
-    this.conf = new OutlierConfig();
+    this.client = getExcClient(this.exc);
     runExcStream(this.exc);
+
+    this.conf = new OutlierConfig();
+    this.helper = new OutlierHelper({
+      conf: this.conf,
+      client: this.client,
+    });
   }
 
   init = async () => {
@@ -49,7 +57,9 @@ export class OutlierBot extends Bot {
       .onLive$({ exchange: this.exc })
       .pipe(
         groupBy(({ topic }) => topic),
-        mergeMap((group$) => group$.pipe(throttleTime(CANDLE_EVENT_THROTTLE))),
+        mergeMap((group$) =>
+          group$.pipe(throttleTime(this.conf.candleEventThrottle)),
+        ),
       )
       .subscribe(({ topic, data: candle }) =>
         this.handleCandleLive(topic, candle),
@@ -65,10 +75,7 @@ export class OutlierBot extends Bot {
   private handleCandleLive = (topic: string, candle: Candle) => {
     const config = this.conf.targetStgMap[topic];
     if (!config) return;
-    const { isOutlier, changeRatio } = checkOutlierCandle(
-      candle,
-      config.threshold,
-    );
+    const { isOutlier, changeRatio } = this.helper.checkOutlier(candle, topic);
     if (isOutlier) {
       this.handleOutlier(topic, changeRatio);
     }
