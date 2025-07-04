@@ -1,9 +1,5 @@
+import { OutlierConfig } from "@/bot/outlier/outlier.config";
 import { checkOutlierCandle } from "@/bot/outlier/outlier.lib";
-import {
-  OUTLIER_CONFIG_LIST,
-  OUTLIER_TOPICS,
-  type OutlierConfig,
-} from "@/bot/outlier/outlier.stg";
 import { candleChannel } from "@/channel/candle.channel";
 import { MsgTarget } from "@/channel/msg.channel";
 import { streamCn } from "@/channel/stream.channel";
@@ -17,24 +13,18 @@ import { sendMsgToUser } from "@/util/msg.util";
 import TTLCache from "@isaacs/ttlcache";
 import { groupBy, mergeMap, throttleTime } from "rxjs";
 
-const THROTTLE_TIME = 1000;
+const CANDLE_EVENT_THROTTLE = 1000;
 
 export class OutlierBot extends Bot {
-  private readonly configMap = OUTLIER_CONFIG_LIST.reduce(
-    (acc, [topic, config]) => {
-      acc[topic] = config;
-      return acc;
-    },
-    {} as { [key in string]: OutlierConfig },
-  );
-  private readonly outlierCache = new TTLCache<string, { changeRatio: number }>(
-    {
-      ttl: 1000 * ENV.OUTLIER_MSG_TTL,
-    },
-  );
+  private readonly conf: OutlierConfig;
+
+  private readonly msgCache = new TTLCache<string, { changeRatio: number }>({
+    ttl: 1000 * ENV.OUTLIER_MSG_TTL,
+  });
 
   constructor(params: { exc: Exchange }) {
     super({ exc: params.exc });
+    this.conf = new OutlierConfig();
     runExcStream(this.exc);
   }
 
@@ -50,7 +40,7 @@ export class OutlierBot extends Bot {
   private reqSubscribe = async () => {
     streamCn.subscribe({
       exchange: this.exc,
-      data: { topics: OUTLIER_TOPICS },
+      data: { topics: this.conf.targetTopics },
     });
   };
 
@@ -59,7 +49,7 @@ export class OutlierBot extends Bot {
       .onLive$({ exchange: this.exc })
       .pipe(
         groupBy(({ topic }) => topic),
-        mergeMap((group$) => group$.pipe(throttleTime(THROTTLE_TIME))),
+        mergeMap((group$) => group$.pipe(throttleTime(CANDLE_EVENT_THROTTLE))),
       )
       .subscribe(({ topic, data: candle }) =>
         this.handleCandleLive(topic, candle),
@@ -73,7 +63,7 @@ export class OutlierBot extends Bot {
   };
 
   private handleCandleLive = (topic: string, candle: Candle) => {
-    const config = this.configMap[topic];
+    const config = this.conf.targetStgMap[topic];
     if (!config) return;
     const { isOutlier, changeRatio } = checkOutlierCandle(
       candle,
@@ -89,10 +79,10 @@ export class OutlierBot extends Bot {
   };
 
   private handleOutlier = (topic: string, changeRatio: number) => {
-    if (!this.configMap[topic]) return;
+    if (!this.conf.targetStgMap[topic]) return;
 
     let shouldSendMessage = false;
-    const cachedData = this.outlierCache.get(topic);
+    const cachedData = this.msgCache.get(topic);
 
     if (
       !cachedData || // New data
@@ -101,11 +91,11 @@ export class OutlierBot extends Bot {
       shouldSendMessage = true;
     } else {
       const changedDiff = Math.abs(changeRatio - cachedData.changeRatio);
-      shouldSendMessage = changedDiff >= this.configMap[topic].step; // step over
+      shouldSendMessage = changedDiff >= this.conf.targetStgMap[topic].step; // step over
     }
 
     if (shouldSendMessage) {
-      this.outlierCache.set(topic, { changeRatio: changeRatio });
+      this.msgCache.set(topic, { changeRatio: changeRatio });
       const changedPercent = (changeRatio * 100).toFixed(2);
       logger.info(
         { topic, changeRatio: changedPercent },
@@ -121,6 +111,6 @@ export class OutlierBot extends Bot {
   };
 
   private resetCache = () => {
-    this.outlierCache.clear();
+    this.msgCache.clear();
   };
 }
