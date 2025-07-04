@@ -4,7 +4,7 @@ import {
 } from "@/exchange/bybit/bybit.util";
 import { ExchangeClient } from "@/model/ex-client.model";
 import {
-  $PositionInfo,
+  $PositionMini,
   $TSide,
   type Candle,
   type TInterval,
@@ -43,15 +43,13 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
     });
   }
 
-  client$() {
-    return this.client;
-  }
+  client$ = () => this.client;
 
-  async getAvailableBalance({
+  getAvailableBalance = async ({
     coinName,
   }: {
     coinName: string; // e.g. USDT
-  }): Promise<number> {
+  }): Promise<number> => {
     const ret = await this.client.getWalletBalance({
       accountType: "UNIFIED",
       coin: coinName,
@@ -70,16 +68,16 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
     const walletBalance = Number(targetCoin.walletBalance); // (증거금까지 포함한) 코인 잔액
     const totalPositionIM = Number(targetCoin.totalPositionIM); // 전체 포지션 증거금 총합
     return floor(walletBalance - totalPositionIM, 2);
-  }
+  };
 
   // 캔들 가져옴. (0번 인덱스가 제일 최신 캔들)
-  async getCandles(args: {
+  getCandles = async (args: {
     symbol: TSymbol;
     interval: TInterval;
     limit: TLimit;
     endTimeStamp?: TTimeStamp;
     withNowCandle?: boolean;
-  }): Promise<Candle[]> {
+  }): Promise<Candle[]> => {
     const rawKlines = await this.client
       .getKline({
         category: CATEGORY,
@@ -91,29 +89,29 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
       .then((res) => res.result.list);
     const slicedRawKlines = args.withNowCandle ? rawKlines : rawKlines.slice(1);
     return convertBybitKlinesToCandles(slicedRawKlines);
-  }
+  };
 
-  async getPositionInfo(params: {
+  getPositionInfo = async (params: {
     symbol?: string;
     settleCoin?: string;
-  }) {
+  }) => {
     const data = await this.client.getPositionInfo({
       category: CATEGORY,
       symbol: params.symbol,
       settleCoin: params.settleCoin ?? "USDT",
     });
     return data.result.list.find((pos) => pos.symbol === params.symbol);
-  }
+  };
 
-  async getPositionInfos(params: { symbol?: string }) {
+  getPositionInfos = async (params: { symbol?: string }) => {
     const data = await this.client.getPositionInfo({
       category: CATEGORY,
       symbol: params.symbol,
     });
     return data.result.list;
-  }
+  };
 
-  async getQtyStep(params: { symbol: TSymbol }): Promise<number> {
+  getQtyStep = async (params: { symbol: TSymbol }): Promise<number> => {
     const info = await this.client.getInstrumentsInfo({
       category: CATEGORY,
       symbol: params.symbol,
@@ -123,25 +121,9 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
       throw new Error("[getQtyStep] No qty step found");
     }
     return Number(qtyStep);
-  }
+  };
 
-  // async getOhlcs({
-  //   symbol,
-  //   interval,
-  //   count,
-  //   reverse = false,
-  // }: {
-  //   symbol: string;
-  //   interval: KlineIntervalV3;
-  //   count: number;
-  //   reverse?: boolean;
-  // }): Promise<number[]> {
-  //   const candles = await this.getCandles({ symbol, interval, count });
-  //   const ohlcs = candleTool.convertCandles(candles, "ohlc");
-  //   return reverse ? ohlcs.reverse() : ohlcs;
-  // }
-
-  async createOrder(params: {
+  createOrder = async (params: {
     side: TSide;
     orderType: TOrderType;
     symbol: TSymbol;
@@ -151,7 +133,7 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
     slPrice?: number; // not percent, just base coin value
     reduceOnly?: boolean;
     timeInForce?: TTimeInForce;
-  }) {
+  }) => {
     return this.client.submitOrder({
       category: CATEGORY,
       side: params.side,
@@ -166,32 +148,31 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
       timeInForce: params.timeInForce ?? "GTC",
       reduceOnly: params.reduceOnly ?? false,
     });
-  }
+  };
 
-  async cancelOrder(params: { symbol: TSymbol; orderId: string }) {
+  cancelOrder = async (params: { symbol: TSymbol; orderId: string }) => {
     return this.client.cancelOrder({
       category: CATEGORY,
       symbol: params.symbol,
       orderId: params.orderId,
     });
-  }
+  };
 
-  async cancelAllOrders(params: { symbol: TSymbol }) {
+  cancelAllOrders = async (params: { symbol: TSymbol }) => {
     return this.client.cancelAllOrders({
       category: CATEGORY,
       symbol: params.symbol,
     });
-  }
+  };
 
   // ------------- position -------------
-
-  async closePosition(params: {
+  closePosition = async (params: {
     symbol: TSymbol;
     orderType?: TOrderType;
     side: TSide;
     qty: TQty;
     price?: number;
-  }) {
+  }) => {
     return this.client.submitOrder({
       category: CATEGORY,
       orderType: params.orderType ?? "Market",
@@ -201,15 +182,15 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
       reduceOnly: true,
       price: params.price?.toString(),
     });
-  }
+  };
 
-  async closeAllPositions(params: { symbol?: string }) {
+  closeAllPositions = async (params: { symbol?: string }) => {
     const positions = await this.getPositionInfos({
       symbol: params.symbol,
     }).then((res) => res.filter(filterEmptyPosition));
 
     for (const pos of positions) {
-      const { symbol, size, side } = $PositionInfo.parse(pos);
+      const { symbol, size, side } = $PositionMini.parse(pos);
 
       await this.closePosition({
         symbol,
@@ -217,12 +198,12 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
         qty: size,
       });
     }
-  }
+  };
 
-  async closePositionByPortion(params: {
+  closePositionByPortion = async (params: {
     symbol: TSymbol;
     portion: number;
-  }) {
+  }) => {
     const [positionInfo, qtyStep] = await Promise.all([
       this.getPositionInfo({ symbol: params.symbol }),
       this.getQtyStep({ symbol: params.symbol }),
@@ -239,20 +220,15 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
       side: invertSide($TSide.parse(positionInfo.side)),
       qty,
     });
-  }
-
-  // async closeAll({ symbol }: { symbol: string }) {
-  //   await this.closeAllPositions({ symbol });
-  //   await this.clearAllOrders({ symbol });
-  // }
+  };
 
   // ------------- tp/sl -------------
 
-  async setTpsl(params: {
+  setTpsl = async (params: {
     symbol: TSymbol;
     takeProfit?: number;
     stopLoss?: number;
-  }) {
+  }) => {
     const ret = await this.client.setTradingStop({
       category: CATEGORY,
       symbol: params.symbol,
@@ -262,28 +238,28 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
       positionIdx: 0,
     });
     if (ret.retMsg !== "OK") {
-      console.error(ret.retMsg);
+      logger.error(ret.retMsg);
       throw new Error("[setTpsl] Failed to set tpsl");
     }
     return ret;
-  }
+  };
 
-  async amendTpSlOrder(params: {
+  amendTpSlOrder = async (params: {
     symbol: string;
     orderId: string;
     price: number;
-  }) {
+  }) => {
     return this.client.amendOrder({
       category: CATEGORY,
       symbol: params.symbol,
       orderId: params.orderId,
       triggerPrice: params.price.toString(),
     });
-  }
+  };
 
   // ------------- leverage -------------
 
-  async getLeverage(params: { symbol: TSymbol }) {
+  getLeverage = async (params: { symbol: TSymbol }) => {
     const leverage = await this.getPositionInfo({
       symbol: params.symbol,
     }).then((res) => res?.leverage);
@@ -291,12 +267,12 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
       throw new Error("[getLeverage] No leverage found");
     }
     return Number(leverage);
-  }
+  };
 
-  async setLeverage(params: {
+  setLeverage = async (params: {
     symbol: TSymbol;
     leverage: number;
-  }) {
+  }) => {
     const curLeverage = await this.getLeverage({ symbol: params.symbol });
     if (curLeverage === params.leverage) {
       return;
@@ -316,5 +292,5 @@ export class BybitClient extends ExchangeClient<RestClientV5> {
       );
       throw new Error("[setLeverage] Failed to set leverage");
     }
-  }
+  };
 }

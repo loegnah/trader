@@ -1,9 +1,9 @@
 import { ExchangeChannel } from "@/channel/ex.channel";
-import { $Position } from "@/type/trade.type";
+import { $PositionData } from "@/type/trade.type";
 import { z } from "zod/v4";
 
 export const $PositionChEvent = z.object({
-  data: $Position,
+  positionDatas: z.array($PositionData),
 });
 
 export type PositionChEvent = z.infer<typeof $PositionChEvent>;

@@ -15,23 +15,24 @@ export abstract class ExchangeClient<T = any> {
 
   abstract client$(): T;
 
-  abstract getAvailableBalance(params: { coinName: string }): Promise<number>;
+  abstract getAvailableBalance: (params: {
+    coinName: string;
+  }) => Promise<number>;
 
-  // 캔들 가져옴. (0번 인덱스가 제일 최신 캔들)
-  abstract getCandles(args: {
+  abstract getCandles: (args: {
     symbol: TSymbol;
     interval: TInterval;
     limit: TLimit;
     endTimeStamp?: TTimeStamp;
     withNowCandle?: boolean;
-  }): Promise<Candle[]>;
+  }) => Promise<Candle[]>;
 
-  abstract getPositionInfo(params: {
+  abstract getPositionInfo: (params: {
     symbol?: string;
     settleCoin?: string;
-  }): Promise<any>;
+  }) => Promise<any>;
 
-  abstract getPositionInfos(params: { symbol?: string }): Promise<any[]>;
+  abstract getPositionInfos: (params: { symbol?: string }) => Promise<any[]>;
 
   abstract getQtyStep(params: { symbol: TSymbol }): Promise<number>;
 

@@ -38,19 +38,23 @@ export class OutlierBot extends Bot {
     runExcStream(this.exc);
   }
 
-  async init() {
-    await this.reqSubscribe();
+  init = async () => {
+    await this.start();
     await this.setupHandler();
-  }
+  };
 
-  private async reqSubscribe() {
+  start = async () => {
+    await this.reqSubscribe();
+  };
+
+  private reqSubscribe = async () => {
     streamCn.subscribe({
       exchange: this.exc,
       data: { topics: OUTLIER_TOPICS },
     });
-  }
+  };
 
-  private async setupHandler() {
+  private setupHandler = async () => {
     candleChannel
       .onLive$({ exchange: this.exc })
       .pipe(
@@ -66,9 +70,9 @@ export class OutlierBot extends Bot {
       .subscribe(({ topic, data: candle }) =>
         this.handleCandleConfirmed(topic, candle),
       );
-  }
+  };
 
-  private handleCandleLive(topic: string, candle: Candle) {
+  private handleCandleLive = (topic: string, candle: Candle) => {
     const config = this.configMap[topic];
     if (!config) return;
     const { isOutlier, changeRatio } = checkOutlierCandle(
@@ -78,13 +82,13 @@ export class OutlierBot extends Bot {
     if (isOutlier) {
       this.handleOutlier(topic, changeRatio);
     }
-  }
+  };
 
-  private handleCandleConfirmed(_topic: string, _candle: Candle) {
+  private handleCandleConfirmed = (_topic: string, _candle: Candle) => {
     this.resetCache();
-  }
+  };
 
-  private handleOutlier(topic: string, changeRatio: number) {
+  private handleOutlier = (topic: string, changeRatio: number) => {
     if (!this.configMap[topic]) return;
 
     let shouldSendMessage = false;
@@ -102,20 +106,21 @@ export class OutlierBot extends Bot {
 
     if (shouldSendMessage) {
       this.outlierCache.set(topic, { changeRatio: changeRatio });
+      const changedPercent = (changeRatio * 100).toFixed(2);
       logger.info(
-        { topic, changeRatio: changeRatio.toFixed(2) },
+        { topic, changeRatio: changedPercent },
         `[outlier-bot] Outlier detected`,
       );
       sendMsgToUser({
         target: MsgTarget.DISCORD,
         title: "Outlier detected",
         topic,
-        changed: changeRatio.toFixed(2),
+        changed: changedPercent,
       });
     }
-  }
+  };
 
-  private resetCache() {
+  private resetCache = () => {
     this.outlierCache.clear();
-  }
+  };
 }

@@ -3,51 +3,74 @@ import {
   DopamineConfig,
   DopaminePhase as Phase,
 } from "@/bot/dopamine/dpm.config";
-import { DopamineLib } from "@/bot/dopamine/dpm.lib";
+import { DopamineHelper } from "@/bot/dopamine/dpm.helper";
 import { DopamineMemory } from "@/bot/dopamine/dpm.memory";
-import { type CandleChEvent, candleChannel } from "@/channel/candle.channel";
+import { candleChannel } from "@/channel/candle.channel";
+import { orderChannel } from "@/channel/order.channel";
+import { positionChannel } from "@/channel/position.channel";
 import { streamCn } from "@/channel/stream.channel";
 import { ENV } from "@/env";
 import { getExcClient } from "@/exchange/excClient";
 import { runExcStream } from "@/exchange/excStream";
 import { Bot } from "@/model/bot.model";
 import type { ExchangeClient } from "@/model/ex-client.model";
-import { type EventHandlerMap, EventType, Exchange } from "@/type/trade.type";
+import { EventType, Exchange, type PhaseMap } from "@/type/trade.type";
 import { calcOhlc } from "@/util/candle.util";
 import { logger } from "@/util/logger";
 import { calcRsi } from "@/util/rsi";
-import { tap } from "rxjs";
+import { classifyOrderData } from "@/util/trade.util";
+import { filter, map, tap } from "rxjs";
 
 export class DopamineBot extends Bot {
   private readonly conf: DopamineConfig;
-  private readonly lib: DopamineLib;
+  private readonly helper: DopamineHelper;
   private readonly mem: DopamineMemory;
   private readonly client: ExchangeClient;
 
-  private readonly handlerMap: EventHandlerMap<Phase> = {
-    [EventType.CANDLE_CONFIRMED]: {
-      [Phase.IDLE]: [this.candleLiveHandler1, this.candleLiveHandler2],
-      [Phase.PHASE_1]: [this.candleLiveHandler3],
-    },
-  };
+  private readonly phaseMap: PhaseMap<Phase>;
 
-  private phase: Phase = Phase.IDLE;
+  private phase: Phase = Phase.ENTER;
 
   constructor(params: { exc: Exchange }) {
     super({ exc: params.exc });
-    this.conf = new DopamineConfig();
-    this.lib = new DopamineLib({ conf: this.conf });
-    this.mem = new DopamineMemory({ conf: this.conf });
     this.client = getExcClient(this.exc);
-  }
-
-  async init() {
-    await this.start();
     runExcStream(this.exc);
-    await this.setupHandler();
+
+    this.conf = new DopamineConfig();
+    this.mem = new DopamineMemory({ conf: this.conf });
+    this.helper = new DopamineHelper({
+      conf: this.conf,
+      mem: this.mem,
+      client: this.client,
+    });
+
+    this.phaseMap = {
+      [Phase.IDLE]: {
+        handler: {
+          [EventType.CANDLE_LIVE]: this.idle_candleCn,
+        },
+      },
+      [Phase.OUT_RSI]: {
+        handler: {
+          [EventType.CANDLE_LIVE]: this.outRsi_candleCn,
+        },
+      },
+      [Phase.ENTER]: {
+        handler: {
+          [EventType.STARTER]: this.order_starter,
+          [EventType.POSITION]: this.enter_position,
+          [EventType.ORDER]: this.enter_order,
+        },
+      },
+    };
   }
 
-  async start() {
+  init = async () => {
+    await this.start();
+    await this.setupHandler();
+  };
+
+  start = async () => {
     await this.setupAccountSetting();
     await this.setupInitialData();
     await this.reqSubscribe();
@@ -59,10 +82,57 @@ export class DopamineBot extends Bot {
       },
       "[START]",
     );
-  }
+  };
 
   // ------------------------ setup ------------------------
-  private async setupAccountSetting() {
+
+  private reqSubscribe = async () => {
+    streamCn.subscribe({
+      exchange: this.exc,
+      data: { topics: [this.conf.topic] },
+    });
+  };
+
+  private setupHandler = async () => {
+    candleChannel
+      .onConfirmed$({ exchange: this.exc })
+      .pipe(
+        tap(this.helper.saveDataToMemory(EventType.CANDLE_CONFIRMED) as any),
+        tap(this.helper.makeRsi({ candleType: "cn" })),
+      )
+      .subscribe(async () => {
+        await this.phaseMap[this.phase]?.handler[EventType.CANDLE_LIVE]?.();
+      });
+
+    orderChannel
+      .on$({ exchange: this.exc })
+      .pipe(
+        map(({ orders }) => ({
+          orders: orders.filter(({ symbol }) => symbol === this.conf.symbol),
+        })),
+        tap(this.helper.saveDataToMemory(EventType.ORDER) as any),
+      )
+      .subscribe(async () => {
+        await this.phaseMap[this.phase]?.handler[EventType.ORDER]?.();
+      });
+
+    positionChannel
+      .on$({ exchange: this.exc })
+      .pipe(
+        map(({ positionDatas }) => ({
+          positionData: positionDatas.find(
+            ({ symbol }) => symbol === this.conf.symbol,
+          ),
+        })),
+        filter(({ positionData }) => !!positionData),
+        tap(this.helper.saveDataToMemory(EventType.POSITION) as any),
+      )
+      .subscribe(async () => {
+        await this.phaseMap[this.phase]?.handler[EventType.POSITION]?.();
+      });
+  };
+
+  private setupAccountSetting = async () => {
     await this.client.setLeverage({
       symbol: this.conf.symbol,
       leverage: this.conf.leverage,
@@ -76,62 +146,17 @@ export class DopamineBot extends Bot {
         symbol: this.conf.symbol,
       });
     }
-  }
-
-  private async reqSubscribe() {
-    streamCn.subscribe({
-      exchange: this.exc,
-      data: { topics: [this.conf.topic] },
-    });
-  }
-
-  private async setupHandler() {
-    candleChannel
-      .onConfirmed$({ exchange: this.exc })
-      .pipe(tap(this.saveDataToMemory(EventType.CANDLE_CONFIRMED)))
-      .subscribe(async () => {
-        await this.executeHandlers(EventType.CANDLE_CONFIRMED, this.phase);
-      });
-  }
-
-  private async executeHandlers(eventType: EventType, phase: Phase) {
-    const handlers = this.handlerMap[eventType]?.[phase];
-    if (!handlers) return;
-
-    for await (const handler of handlers) {
-      try {
-        await handler.call(this);
-      } catch (error) {
-        logger.error(
-          `Handler execution failed for ${eventType}/${phase}:`,
-          error,
-        );
-        return;
-      }
-    }
-  }
-
-  private saveDataToMemory(type: EventType) {
-    switch (type) {
-      case EventType.CANDLE_CONFIRMED:
-        return ({ data }: CandleChEvent) => {
-          this.mem.cn.candle = data;
-        };
-      case EventType.CANDLE_LIVE:
-        return ({ data }: CandleChEvent) => {
-          this.mem.lv.candle = data;
-        };
-    }
-  }
+  };
 
   private setupInitialData = async () => {
+    const LIMIT = 200;
     const candles = await this.client.getCandles({
       symbol: this.conf.symbol,
       interval: this.conf.interval,
-      limit: 200,
+      limit: LIMIT,
       withNowCandle: true,
     });
-    if (candles.length < 2) {
+    if (candles.length < LIMIT) {
       logger.error("[setupInitialData] no candles");
       throw new Error("no candles");
     }
@@ -145,24 +170,108 @@ export class DopamineBot extends Bot {
     });
 
     this.mem.init({
-      lv: makeMemoryCandleData({ candle: lvCandle }),
-      cn: makeMemoryCandleData({ candle: cnCandle, rsi: rsiCn }),
+      lv: makeMemoryCandleData({ candle: lvCandle, preCandle: cnCandle }),
+      cn: makeMemoryCandleData({
+        candle: cnCandle,
+        preCandle: candles[2]!,
+        rsi: rsiCn,
+      }),
       gains,
       losses,
     });
   };
 
-  // ------------------------ handler ------------------------
+  // ------------------------ common ------------------------
 
-  private async candleLiveHandler1() {
-    console.log("candleLiveHandler1");
-  }
-  private async candleLiveHandler2() {
-    console.log("candleLiveHandler2");
-    this.phase = Phase.PHASE_1;
-  }
+  private changePhase = async (phase: Phase) => {
+    if (this.phase === phase) return;
+    this.phaseMap[this.phase]?.handler.end?.();
 
-  private async candleLiveHandler3() {
-    console.log("candleLiveHandler3");
-  }
+    logger.info(`[phase] '${this.phase}' -> '${phase}'`);
+    this.phase = phase;
+    await this.phaseMap[phase]?.handler.starter?.();
+  };
+
+  // ------------------------ phase handler ------------------------
+
+  private idle_candleCn = async () => {
+    const { rsi, candle } = this.mem.cn;
+    if (!rsi) {
+      throw new Error("[idle_candleCn] invalid data");
+    }
+    const { triggerLevel, side } = this.helper.checkTriggerLevel({
+      candle,
+      rsi,
+    });
+    if (triggerLevel) {
+      this.mem.round.triggerLevel = triggerLevel;
+      this.mem.round.positionSide = side;
+      this.helper.checkPoint({ candle });
+      await this.changePhase(Phase.OUT_RSI);
+    }
+  };
+
+  private outRsi_candleCn = async () => {
+    const { rsi, candle } = this.mem.cn;
+    const { triggerLevel: preTriggerLevel } = this.mem.round;
+    if (!preTriggerLevel || !rsi) {
+      throw new Error("[outRsi_candleCn] invalid data");
+    }
+    this.helper.checkPoint({ candle });
+    const { triggerLevel } = this.helper.checkTriggerLevel({
+      candle,
+      rsi,
+    });
+    if (preTriggerLevel! < triggerLevel) {
+      this.mem.round.triggerLevel = triggerLevel;
+      logger.info(
+        { triggerLevel, rsi },
+        "[outRsi_candleCn] New trigger level found",
+      );
+      return;
+    }
+    if (preTriggerLevel! > triggerLevel) {
+      await this.changePhase(Phase.ENTER);
+    }
+  };
+
+  private order_starter = async () => {
+    const { positionSide } = this.mem.round;
+    if (!positionSide) {
+      throw new Error("[order_starter] invalid data");
+    }
+    await this.helper.orderFirstEntry({
+      price: this.mem.cn.candle.close,
+      side: positionSide,
+    });
+  };
+
+  private enter_position = async () => {
+    const { position } = this.mem;
+    if (!position) {
+      throw new Error("[enter_position] invalid data");
+    }
+    logger.trace({ position }, "[enter_position] position");
+    if (!this.mem.round.position) {
+      // is first position event
+      this.mem.round.position = position;
+      await this.helper.setEntrySl({
+        entryPrice: position.entryPrice,
+        positionSide: position.side,
+      });
+    }
+  };
+
+  private enter_order = async () => {
+    const { orders } = this.mem;
+    if (!orders) {
+      throw new Error("[enter_order] invalid data");
+    }
+    const { slUntriggeredOrder: slOrder } = classifyOrderData(orders);
+    if (slOrder) {
+      logger.info({ slOrder }, "[enter_order] orders");
+      this.mem.round.slOrder = slOrder;
+      // TODO: To to next phase
+    }
+  };
 }

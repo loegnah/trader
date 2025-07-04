@@ -3,7 +3,7 @@ import { $Order } from "@/type/trade.type";
 import { z } from "zod/v4";
 
 export const $OrderChEvent = z.object({
-  data: $Order,
+  orders: z.array($Order),
 });
 
 export type OrderChEvent = z.infer<typeof $OrderChEvent>;

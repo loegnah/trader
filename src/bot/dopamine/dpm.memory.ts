@@ -1,45 +1,65 @@
 import type { DopamineConfig } from "@/bot/dopamine/dpm.config";
-import type { MemoryCandleData } from "@/type/trade.type";
+import type {
+  MemoryCandleData,
+  Order,
+  Position,
+  TSide,
+} from "@/type/trade.type";
+
+type RoundData = {
+  triggerLevel: number;
+  pointTop: number;
+  pointBtm: number;
+  positionSide?: TSide;
+  position?: Position;
+  slOrder?: Order;
+};
+
+const defaultRoundData: RoundData = {
+  triggerLevel: 0,
+  pointTop: -1,
+  pointBtm: Number.POSITIVE_INFINITY,
+};
 
 export class DopamineMemory {
   private readonly conf: DopamineConfig;
 
   cn!: MemoryCandleData;
   lv!: MemoryCandleData;
+  position?: Position;
+  orders?: Order[];
+
   rsiData: {
     gains: number[];
     losses: number[];
   };
 
   // 각 round 마다 리셋되는 데이터
-  round: {
-    abc?: string;
-  };
+  round: RoundData = defaultRoundData;
 
   constructor(params: { conf: DopamineConfig }) {
     this.conf = params.conf;
-    this.round = {};
     this.rsiData = {
       gains: [],
       losses: [],
     };
   }
 
-  init(params: {
+  init = (params: {
     lv: MemoryCandleData;
     cn: MemoryCandleData;
     gains: number[];
     losses: number[];
-  }) {
+  }) => {
     this.lv = params.lv;
     this.cn = params.cn;
     this.rsiData = {
       gains: params.gains,
       losses: params.losses,
     };
-  }
+  };
 
-  resetRound() {
-    this.round = {};
-  }
+  resetRound = () => {
+    this.round = defaultRoundData;
+  };
 }

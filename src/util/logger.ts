@@ -4,7 +4,7 @@ import pino from "pino";
 
 const LOG_FILE_NAME = dayjs().format("YYYYMMDD-HHmmss");
 export const logger = pino(
-  { level: "trace" },
+  { level: ENV.LOG_LEVEL_CONSOLE },
   pino.transport({
     targets: [
       {

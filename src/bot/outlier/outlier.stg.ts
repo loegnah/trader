@@ -4,9 +4,9 @@ export type OutlierConfig = {
 };
 
 const OUTLIER_CONFIG_RAW_LIST: any[] = [
-  ["kline.5.BTCUSDT", 1, 0.2],
-  ["kline.5.ETHUSDT", 2, 0.3],
-  ["kline.5.SOLUSDT", 2, 0.3],
+  ["kline.5.BTCUSDT", 0.01, 0.002],
+  ["kline.5.ETHUSDT", 0.02, 0.003],
+  ["kline.5.SOLUSDT", 0.02, 0.003],
   ["kline.5.XRPUSDT"],
   ["kline.5.LTCUSDT"],
   ["kline.5.DOGEUSDT"],
@@ -23,8 +23,8 @@ export const OUTLIER_CONFIG_LIST: [string, OutlierConfig][] =
     return [
       topic,
       {
-        threshold: threshold ?? 2.5,
-        step: step ?? 0.4,
+        threshold: threshold ?? 0.025,
+        step: step ?? 0.004,
       },
     ];
   });

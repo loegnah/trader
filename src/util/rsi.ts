@@ -59,13 +59,13 @@ export function calcRsi({
 // gain, loss 리스트를 받아서 가장 최신의 RSI 및 gain, loss 등을 구하는 함수
 export function calcRsiFromGL({
   change,
-  gains: preGains,
-  losses: preLosses,
+  preGains,
+  preLosses,
   period = DEFAULT_PERIOD,
 }: {
   change: number;
-  gains: number[];
-  losses: number[];
+  preGains: number[];
+  preLosses: number[];
   period?: number;
 }) {
   const gains = [...preGains.slice(1), Math.max(change, 0)];

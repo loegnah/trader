@@ -1,4 +1,4 @@
-import type { KlineIntervalV3 } from "bybit-api";
+import type { KlineIntervalV3, OrderStatusV5 } from "bybit-api";
 import { z } from "zod/v4";
 
 // ---------------- enum ----------------
@@ -47,18 +47,60 @@ export const $CandleWithConfirm = $Candle.extend({
 export type CandleWithConfirm = z.infer<typeof $CandleWithConfirm>;
 
 // -------------- position --------------
-export const $Position = z.object();
+export const $Position = z.object({
+  symbol: z.string(),
+  side: $TSide,
+  positionValue: z.coerce.number(), // 포지션 가치 (ex. 1000 USDT)
+  size: z.coerce.number(), // 포지션 개수 (ex. 0.5 BTC)
+  entryPrice: z.coerce.number(), // 평단가
+  leverage: z.coerce.number(),
+});
 export type Position = z.infer<typeof $Position>;
 
-export const $PositionInfo = z.object({
-  symbol: z.string(),
-  size: z.coerce.number(),
-  side: $TSide,
+export const $PositionData = $Position.extend({
+  side: z.enum(["Buy", "Sell", ""]),
 });
-export type PositionInfo = z.infer<typeof $PositionInfo>;
+export type PositionData = z.infer<typeof $PositionData>;
+
+export const $PositionMini = $PositionData
+  .pick({
+    symbol: true,
+    size: true,
+  })
+  .extend({
+    side: $TSide,
+  });
+export type PositionMini = z.infer<typeof $PositionMini>;
 
 // -------------- order --------------
-export const $Order = z.object();
+export const ORDER_STATUS = [
+  "Created",
+  "New",
+  "Rejected",
+  "PartiallyFilled",
+  "PartiallyFilledCanceled",
+  "Filled",
+  "Cancelled",
+  "Untriggered",
+  "Triggered",
+  "Deactivated",
+  "Active",
+] as const satisfies OrderStatusV5[];
+
+export const $Order = z.object({
+  symbol: z.string(),
+  orderStatus: z.enum(ORDER_STATUS),
+  orderId: z.string(),
+  stopOrderType: z.enum(["StopLoss", "TakeProfit", ""]),
+  side: $TSide,
+  price: z.coerce.number(),
+  avgPrice: z.coerce.number(),
+  triggerPrice: z.coerce.number().optional(),
+  qty: z.coerce.number(),
+  cumExecQty: z.coerce.number(),
+  reduceOnly: z.boolean(),
+  updatedTime: z.coerce.number(),
+});
 
 export type Order = z.infer<typeof $Order>;
 
@@ -72,12 +114,16 @@ export enum EventType {
   END = "end",
 }
 
-export type PhaseMap<T extends string> = Record<
-  T,
-  {
-    handler: Partial<Record<EventType, (...args: any[]) => Promise<void>>>;
-    alertMsg?: string;
-  }
+export type PhaseMap<T extends string> = Partial<
+  Record<
+    T,
+    {
+      handler: Partial<
+        Record<EventType, (...args: any[]) => Promise<void> | void>
+      >;
+      msgEnterPhase?: string;
+    }
+  >
 >;
 
 export type EventHandlerMap<T extends string> = Partial<
@@ -91,5 +137,8 @@ export type EventHandlerMap<T extends string> = Partial<
 export type MemoryCandleData = {
   candle: Candle;
   side: TSide;
+  preCandle: Candle;
+  preSide: TSide;
   rsi?: number;
+  preRsi?: number;
 };

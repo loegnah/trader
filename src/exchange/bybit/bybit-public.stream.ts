@@ -6,8 +6,6 @@ import { Exchange } from "@/type/trade.type";
 import { logger } from "@/util/logger";
 import { WebsocketClient } from "bybit-api";
 
-const EX = Exchange.BYBIT;
-
 export class BybitStreamPublic extends ExchangeStreamPublic {
   private stream: WebsocketClient;
 
@@ -20,12 +18,12 @@ export class BybitStreamPublic extends ExchangeStreamPublic {
     });
   }
 
-  async init() {
+  init = async () => {
     this.setupStreamListener();
     this.setupChannelListener();
-  }
+  };
 
-  private setupStreamListener() {
+  private setupStreamListener = () => {
     this.stream.on("close", () => {
       logger.warn("[bybit-stream-public] connection closed");
     });
@@ -37,28 +35,32 @@ export class BybitStreamPublic extends ExchangeStreamPublic {
         return this.handleKlineEvent(event);
       }
     });
-  }
+  };
 
-  private setupChannelListener() {
-    streamCn.onSubscribe$({ exchange: EX }).subscribe(({ topics }) => {
-      this.stream.subscribeV5(topics, "linear");
-      logger.info(`[bybit-stream-public] subscribed to (${topics.join(", ")})`);
-    });
-  }
+  private setupChannelListener = () => {
+    streamCn
+      .onSubscribe$({ exchange: Exchange.BYBIT })
+      .subscribe(({ topics }) => {
+        this.stream.subscribeV5(topics, "linear");
+        logger.info(
+          `[bybit-stream-public] subscribed to (${topics.join(", ")})`,
+        );
+      });
+  };
 
-  private handleKlineEvent(event: any) {
+  private handleKlineEvent = (event: any) => {
     const ret = convertBybitKlineEventToCandle(event.data);
     if (!ret) {
       logger.warn("[bybit-stream-public] candle is null");
       return;
     }
     candleChannel.emit({
-      exchange: EX,
+      exchange: Exchange.BYBIT,
       data: {
         topic: event.topic,
         data: ret.candle,
         confirm: ret.confirm,
       },
     });
-  }
+  };
 }
