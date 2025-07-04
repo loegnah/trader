@@ -37,10 +37,10 @@ export class DopamineBot extends Bot {
     runExcStream({
       exc: this.exc,
       streamParams: {
-        apiKey: ENV.BYBIT_API_KEY,
-        apiSecret: ENV.BYBIT_API_SECRET,
-        isTestnet: ENV.BYBIT_IS_TESTNET,
-        isDemoTrading: ENV.BYBIT_IS_DEMO_TRADING,
+        apiKey: ENV.DOPAMINE_BYBIT_API_KEY,
+        apiSecret: ENV.DOPAMINE_BYBIT_API_SECRET,
+        isTestnet: ENV.DOPAMINE_BYBIT_IS_TESTNET,
+        isDemoTrading: ENV.DOPAMINE_BYBIT_IS_DEMO_TRADING,
       },
     });
 

@@ -19,12 +19,6 @@ export const ENV = z
     // DB
     DB_URL: z.string().default("file:./sqlite.db"),
 
-    // Exchange
-    BYBIT_API_KEY: z.string(),
-    BYBIT_API_SECRET: z.string(),
-    BYBIT_IS_DEMO_TRADING: zBoolean().default(false),
-    BYBIT_IS_TESTNET: zBoolean().default(false),
-
     // Discord
     DISCORD_IS_RUN: zBoolean().default(false),
     DISCORD_USER_ID: z.string(),
@@ -38,12 +32,22 @@ export const ENV = z
     TELEGRAM_BOT_TOKEN: z.string(),
     TELEGRAM_BOT_CHAT_ID: z.string(),
 
-    // Bot
-    BOT_OUTLIER_RUN: zBoolean().default(false),
-    BOT_DOPAMINE_RUN: zBoolean().default(false),
+    // ---------------------- Bot ----------------------
 
-    // Bot-Outlier
+    // Outlier
+    OUTLIER_RUN: zBoolean().default(false),
     OUTLIER_MSG_TTL: z.coerce.number(),
     OUTLIER_RESET_STATE: zBoolean().default(false),
+    OUTLIER_BYBIT_API_KEY: z.string(),
+    OUTLIER_BYBIT_API_SECRET: z.string(),
+    OUTLIER_BYBIT_IS_DEMO_TRADING: zBoolean().default(false),
+    OUTLIER_BYBIT_IS_TESTNET: zBoolean().default(false),
+
+    // Dopamine
+    DOPAMINE_RUN: zBoolean().default(false),
+    DOPAMINE_BYBIT_API_KEY: z.string(),
+    DOPAMINE_BYBIT_API_SECRET: z.string(),
+    DOPAMINE_BYBIT_IS_DEMO_TRADING: zBoolean().default(false),
+    DOPAMINE_BYBIT_IS_TESTNET: zBoolean().default(false),
   })
   .parse(dotenv.config({ path: [".env"] }).parsed);

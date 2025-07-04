@@ -11,10 +11,10 @@ const clientGetter: Record<Exchange, () => ExchangeClient> = {
       clients.set(
         Exchange.BYBIT,
         new BybitClient({
-          apiKey: ENV.BYBIT_API_KEY,
-          apiSecret: ENV.BYBIT_API_SECRET,
-          isDemoTrading: ENV.BYBIT_IS_DEMO_TRADING,
-          isTestnet: ENV.BYBIT_IS_TESTNET,
+          apiKey: ENV.DOPAMINE_BYBIT_API_KEY,
+          apiSecret: ENV.DOPAMINE_BYBIT_API_SECRET,
+          isDemoTrading: ENV.DOPAMINE_BYBIT_IS_DEMO_TRADING,
+          isTestnet: ENV.DOPAMINE_BYBIT_IS_TESTNET,
         }),
       );
     }

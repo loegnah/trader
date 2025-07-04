@@ -7,13 +7,13 @@ import { Exchange } from "@/type/trade.type";
 const runningBots = new Map<string, Bot>();
 
 export async function initBot() {
-  if (ENV.BOT_OUTLIER_RUN) {
+  if (ENV.OUTLIER_RUN) {
     const outlierBot = new OutlierBot({ exc: Exchange.BYBIT });
     await outlierBot.init();
     runningBots.set("outlier", outlierBot);
   }
 
-  if (ENV.BOT_DOPAMINE_RUN) {
+  if (ENV.DOPAMINE_RUN) {
     const dopamineBot = new DopamineBot({ exc: Exchange.BYBIT });
     await dopamineBot.init();
     runningBots.set("dopamine", dopamineBot);

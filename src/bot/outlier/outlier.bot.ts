@@ -30,8 +30,8 @@ export class OutlierBot extends Bot {
     runExcPublicStream({
       exc: this.exc,
       streamParams: {
-        isTestnet: ENV.BYBIT_IS_TESTNET,
-        isDemoTrading: ENV.BYBIT_IS_DEMO_TRADING,
+        isTestnet: ENV.OUTLIER_BYBIT_IS_TESTNET,
+        isDemoTrading: ENV.OUTLIER_BYBIT_IS_DEMO_TRADING,
       },
     });
 
